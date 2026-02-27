@@ -6,7 +6,7 @@
     <p v-if="loading" class="text-content-muted">Loading…</p>
     <p v-else-if="error" class="text-red-500">{{ error }}</p>
     <p v-else-if="data" class="text-content">{{ data.message }}</p>
-    <p class="text-content-muted mt-4 text-sm">Vue.js + Tailwind CSS frontend</p>
+    <!-- <p class="text-content-muted mt-4 text-sm">Vue.js + Tailwind CSS frontend</p> -->
   </div>
 </template>
 
