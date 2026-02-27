@@ -111,7 +111,7 @@ ps:
 
 # Show health status (requires containers to be running)
 # Override with BACKEND_URL, FRONTEND_URL if you changed ports via .env
-BACKEND_URL ?= http://localhost:8000
+BACKEND_URL ?= http://localhost:8001
 FRONTEND_URL ?= http://localhost:80
 health:
 	@echo "=== Backend (curl /health) ==="

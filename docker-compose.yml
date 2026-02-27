@@ -1,4 +1,6 @@
-# Defaults work without a .env; override with .env or .env.prod (see .env.example).
+# Variable substitution: Docker Compose auto-loads .env from this directory when present.
+# Override BACKEND_PORT, FRONTEND_PORT, POSTGRES_*, DATABASE_URL, etc. in .env or pass
+# --env-file .env.prod for production. Defaults work without a .env file.
 services:
   backend:
     build:
@@ -6,7 +8,7 @@ services:
       dockerfile: Dockerfile
     container_name: am-lightspeedvt-backend
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_PORT:-8001}:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://app:appsecret@db:5432/appdb}
     depends_on:

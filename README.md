@@ -26,8 +26,8 @@ make health
 ```
 
 - **Frontend**: http://localhost (port 80)
-- **Backend API**: http://localhost:8000
-- **API docs**: http://localhost:8000/docs
+- **Backend API**: http://localhost:8001
+- **API docs**: http://localhost:8001/docs
 - **PostgreSQL**: localhost:5432 (user `app`, password `appsecret`, database `appdb`)
 
 ## Development vs production
