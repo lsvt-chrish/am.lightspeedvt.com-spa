@@ -1,0 +1,36 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+*.egg
+.eggs/
+
+# Virtual environments
+.venv
+venv/
+
+# Python tool caches & reports
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Node / frontend
+frontend/node_modules
+frontend/dist
+frontend/.vite-temp
+
+# Docker
+.docker/
+
+# Environment & secrets
+.env
+.env.prod
+.env.local
+.env.*.local
+*.local

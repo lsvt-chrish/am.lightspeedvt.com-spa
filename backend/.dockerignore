@@ -1,0 +1,28 @@
+# Python
+__pycache__
+*.pyc
+*.pyo
+.venv
+venv
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+htmlcov
+*.egg-info
+*.egg
+.eggs
+
+# Version control & docs (not needed in image)
+.git
+.gitignore
+*.md
+
+# Environment (never bake secrets into image)
+.env
+.env.*
+*.local
+
+# Docker (reduces build context)
+Dockerfile
+.dockerignore

@@ -1,0 +1,17 @@
+# Production overrides: restart policy, image names for registry, env from .env.prod.
+# Use: make prod-up or docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d
+# Set DOCKER_REGISTRY (e.g. ghcr.io/myorg) and IMAGE_TAG (default 0.1.0) for make build-push.
+
+services:
+  backend:
+    image: ${DOCKER_REGISTRY:-localhost}/am-lightspeedvt-backend:${IMAGE_TAG:-0.1.0}
+    restart: always
+    env_file: .env.prod
+
+  frontend:
+    image: ${DOCKER_REGISTRY:-localhost}/am-lightspeedvt-frontend:${IMAGE_TAG:-0.1.0}
+    restart: always
+
+  db:
+    restart: always
+    env_file: .env.prod
