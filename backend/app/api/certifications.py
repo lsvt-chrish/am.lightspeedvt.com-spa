@@ -1,5 +1,6 @@
 """Certifications API: list certifications, users report, certifications by user."""
 import asyncio
+import hashlib
 import re
 import time
 from typing import Any
@@ -50,23 +51,48 @@ _cert_list_cache: dict[str, tuple[list[dict], float]] = {}
 _user_certs_cache: dict[str, tuple[list[dict], float]] = {}
 
 
-def _get_cached_list() -> list[dict] | None:
+def _cache_scope(api_key: str, api_secret: str) -> str:
+    """
+    Build a stable, non-reversible cache namespace for a credential pair.
+    This prevents cross-account cache bleed when users switch credentials.
+    """
+    raw = f"{api_key}:{api_secret}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+def clear_certifications_cache_for_credentials(api_key: str, api_secret: str) -> None:
+    """
+    Invalidate certification caches for one credential scope.
+    Used when session credentials are replaced or cleared.
+    """
+    scope = _cache_scope(api_key, api_secret)
+    prefix = f"{scope}:"
+    list_keys = [k for k in _cert_list_cache if k.startswith(prefix)]
+    user_keys = [k for k in _user_certs_cache if k.startswith(prefix)]
+    for key in list_keys:
+        _cert_list_cache.pop(key, None)
+    for key in user_keys:
+        _user_certs_cache.pop(key, None)
+
+
+def _get_cached_list(scope: str) -> list[dict] | None:
     now = time.monotonic()
-    if "list" in _cert_list_cache:
-        data, expiry = _cert_list_cache["list"]
+    key = f"{scope}:list"
+    if key in _cert_list_cache:
+        data, expiry = _cert_list_cache[key]
         if now < expiry:
             return data
-        del _cert_list_cache["list"]
+        del _cert_list_cache[key]
     return None
 
 
-def _set_cached_list(data: list[dict]) -> None:
-    _cert_list_cache["list"] = (data, time.monotonic() + CERTIFICATIONS_CACHE_TTL)
+def _set_cached_list(scope: str, data: list[dict]) -> None:
+    _cert_list_cache[f"{scope}:list"] = (data, time.monotonic() + CERTIFICATIONS_CACHE_TTL)
 
 
-def _get_cached_user_certs(user_id: str) -> list[dict] | None:
+def _get_cached_user_certs(scope: str, user_id: str) -> list[dict] | None:
     now = time.monotonic()
-    key = f"user_{user_id}"
+    key = f"{scope}:user_{user_id}"
     if key in _user_certs_cache:
         data, expiry = _user_certs_cache[key]
         if now < expiry:
@@ -75,8 +101,8 @@ def _get_cached_user_certs(user_id: str) -> list[dict] | None:
     return None
 
 
-def _set_cached_user_certs(user_id: str, data: list[dict]) -> None:
-    _user_certs_cache[f"user_{user_id}"] = (
+def _set_cached_user_certs(scope: str, user_id: str, data: list[dict]) -> None:
+    _user_certs_cache[f"{scope}:user_{user_id}"] = (
         data,
         time.monotonic() + CERTIFICATIONS_USER_CACHE_TTL,
     )
@@ -91,11 +117,12 @@ async def get_certifications_list(request: Request):
     session = request.state.session
     if not _has_credentials(session):
         raise HTTPException(status_code=401, detail="No credentials in session")
-    cached = _get_cached_list()
-    if cached is not None:
-        return {"certifications": cached}
     api_key = session["api_key"]
     api_secret = session["api_secret"]
+    scope = _cache_scope(api_key, api_secret)
+    cached = _get_cached_list(scope)
+    if cached is not None:
+        return {"certifications": cached}
     all_certs = []
     page = 1
     while True:
@@ -107,7 +134,7 @@ async def get_certifications_list(request: Request):
             break
         page += 1
         await asyncio.sleep(0.2)
-    _set_cached_list(all_certs)
+    _set_cached_list(scope, all_certs)
     return {"certifications": all_certs}
 
 
@@ -125,11 +152,12 @@ async def get_certifications_by_user(request: Request, user_id: str):
     session = request.state.session
     if not _has_credentials(session):
         raise HTTPException(status_code=401, detail="No credentials in session")
-    cached = _get_cached_user_certs(user_id)
-    if cached is not None:
-        return {"certifications": cached, "user_id": user_id}
     api_key = session["api_key"]
     api_secret = session["api_secret"]
+    scope = _cache_scope(api_key, api_secret)
+    cached = _get_cached_user_certs(scope, user_id)
+    if cached is not None:
+        return {"certifications": cached, "user_id": user_id}
     certs_list = await list_certifications(api_key, api_secret, items_per_page=200, page=1)
     # Optional: paginate through all certs if more than 200
     results: list[dict[str, Any]] = []
@@ -155,7 +183,7 @@ async def get_certifications_by_user(request: Request, user_id: str):
                 break
         await asyncio.sleep(0.15)
     results.sort(key=lambda x: x.get("completeDate") or "", reverse=True)
-    _set_cached_user_certs(user_id, results)
+    _set_cached_user_certs(scope, user_id, results)
     return {"certifications": results, "user_id": user_id}
 
 

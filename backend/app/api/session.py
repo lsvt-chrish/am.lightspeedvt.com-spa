@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
+from app.api.certifications import clear_certifications_cache_for_credentials
 from app.lightspeed_api import get_system_info
 
 router = APIRouter(prefix="/session", tags=["session"])
@@ -29,6 +30,14 @@ def _has_credentials(session: dict) -> bool:
 def save_credentials(request: Request, body: CredentialsBody):
     """Store API key and secret in the current session."""
     session = request.state.session
+    old_key = session.get("api_key")
+    old_secret = session.get("api_secret")
+    if (
+        old_key
+        and old_secret
+        and (old_key != body.api_key or old_secret != body.api_secret)
+    ):
+        clear_certifications_cache_for_credentials(old_key, old_secret)
     session["api_key"] = body.api_key
     session["api_secret"] = body.api_secret
     return CredentialsStatus(has_credentials=True)
@@ -45,6 +54,10 @@ def get_credentials_status(request: Request):
 def clear_credentials(request: Request):
     """Remove API credentials from the session."""
     session = request.state.session
+    old_key = session.get("api_key")
+    old_secret = session.get("api_secret")
+    if old_key and old_secret:
+        clear_certifications_cache_for_credentials(old_key, old_secret)
     session.pop("api_key", None)
     session.pop("api_secret", None)
     return CredentialsStatus(has_credentials=False)
