@@ -13,16 +13,16 @@ export default defineConfig({
     port: parseInt(process.env.VITE_DEV_PORT || '5173', 10),
     proxy: {
       '/api': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8001',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       },
       '/apl': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8001',
         changeOrigin: true
       },
       '/test': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8000',
+        target: process.env.VITE_API_TARGET || 'http://localhost:8001',
         changeOrigin: true
       }
     }

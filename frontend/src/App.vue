@@ -16,25 +16,25 @@
         Credentials
       </button>
       <router-link
-        to="/link-builder"
-        class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
-        exact-active-class="bg-surface text-primary"
-      >
-        Link Builder
-      </router-link>
-      <router-link
-        to="/scan"
-        class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
-        exact-active-class="bg-surface text-primary"
-      >
-        Interactive Video Scanner
-      </router-link>
-      <router-link
-        to="/certifications"
+        to="/user-training-data"
         class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
         active-class="bg-surface text-primary"
       >
-        Certifications
+        User Data Tools
+      </router-link>
+      <router-link
+        to="/courseware-tools"
+        class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
+        active-class="bg-surface text-primary"
+      >
+        Courseware Tools
+      </router-link>
+      <router-link
+        to="/integration-tools"
+        class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
+        active-class="bg-surface text-primary"
+      >
+        Integration Tools
       </router-link>
       <button
         type="button"

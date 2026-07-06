@@ -1,7 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import apl as apl_api, certifications as cert_api, health, scan as scan_api, session as session_api
+from app.api import (
+    apl as apl_api,
+    certifications as cert_api,
+    completions_mapping as completions_mapping_api,
+    health,
+    scan as scan_api,
+    session as session_api,
+    training_export as training_export_api,
+    user_check as user_check_api,
+)
 from app.core.config import HOST, PORT
 from app.core.logging import setup_logging
 from app.core.session import SessionMiddleware
@@ -27,6 +36,9 @@ app.include_router(health.router)
 app.include_router(scan_api.router)
 app.include_router(session_api.router)
 app.include_router(cert_api.router)
+app.include_router(training_export_api.router)
+app.include_router(completions_mapping_api.router)
+app.include_router(user_check_api.router)
 app.include_router(apl_api.router)
 
 
