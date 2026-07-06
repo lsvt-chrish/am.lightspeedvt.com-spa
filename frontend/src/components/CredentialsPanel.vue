@@ -86,7 +86,7 @@ defineProps({
   showClose: { type: Boolean, default: false },
 })
 
-defineEmits(['close'])
+const emit = defineEmits(['close'])
 
 const apiKey = ref('')
 const apiSecret = ref('')
@@ -148,6 +148,10 @@ async function save() {
     }
     hasCredentials.value = true
     success.value = 'Credentials saved.'
+    // Notify rest of app that credentials are now present
+    if (typeof window !== 'undefined' && window.dispatchEvent) {
+      window.dispatchEvent(new CustomEvent('lsvt-credentials-saved'))
+    }
   } catch (e) {
     error.value = e.message || 'Failed to save'
   } finally {

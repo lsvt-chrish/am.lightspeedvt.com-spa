@@ -345,7 +345,7 @@ async def apl_redirect(request: Request):
 
 
 @router.get("/test/set-cookie")
-async def test_set_cookie(user_id: str = "4172149"):
+async def test_set_cookie(user_id: str = "3587995"):
     """
     For local/dev: set LSVT_GUSERID cookie and redirect to home.
     Disable or protect in production.

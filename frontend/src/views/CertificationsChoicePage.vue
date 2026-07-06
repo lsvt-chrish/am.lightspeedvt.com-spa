@@ -1,12 +1,12 @@
 <template>
   <div class="w-full max-w-2xl space-y-6">
-    <h1 class="text-2xl font-bold text-primary">Certifications</h1>
+    <h1 class="text-2xl font-bold text-primary">User Data Tools</h1>
     <p class="text-content-muted text-sm">
-      Explore LightSpeed VT certifications and completion status. Choose how you want to view the data.
+      Explore LightSpeed VT certifications and completion status. Choose how you want to view or export the data.
     </p>
 
     <div v-if="!hasCredentials" class="rounded-lg bg-surface border border-edge p-4">
-      <p class="text-content mb-2">API credentials are required to use certifications.</p>
+      <p class="text-content mb-2">API credentials are required to use User Data Tools.</p>
       <button
         type="button"
         class="px-4 py-2 rounded bg-secondary text-secondary-accent font-medium hover:opacity-90"
@@ -18,25 +18,46 @@
 
     <div v-else class="grid gap-4 sm:grid-cols-2">
       <router-link
-        to="/certifications/by-certification"
+        to="/user-training-data/by-certification"
         class="block rounded-lg border border-edge bg-surface p-5 text-left transition-colors hover:border-secondary"
       >
         <h2 class="text-lg font-semibold text-primary">View users for a certification</h2>
         <p class="mt-1 text-sm text-content-muted">Who has completed certification X?</p>
       </router-link>
       <router-link
-        to="/certifications/by-user"
+        to="/user-training-data/by-user"
         class="block rounded-lg border border-edge bg-surface p-5 text-left transition-colors hover:border-secondary"
       >
         <h2 class="text-lg font-semibold text-primary">View certifications for a user</h2>
         <p class="mt-1 text-sm text-content-muted">What certifications has user Y completed?</p>
+      </router-link>
+      <router-link
+        to="/user-training-data/export"
+        class="block rounded-lg border border-edge bg-surface p-5 text-left transition-colors hover:border-secondary"
+      >
+        <h2 class="text-lg font-semibold text-primary">Export training data</h2>
+        <p class="mt-1 text-sm text-content-muted">Download CSV by user, location, or all users with filters.</p>
+      </router-link>
+      <router-link
+        to="/user-training-data/map-completions"
+        class="block rounded-lg border border-edge bg-surface p-5 text-left transition-colors hover:border-secondary"
+      >
+        <h2 class="text-lg font-semibold text-primary">Map user completions</h2>
+        <p class="mt-1 text-sm text-content-muted">Copy chapter-level course completions from one user to another.</p>
+      </router-link>
+      <router-link
+        to="/user-training-data/check-users"
+        class="block rounded-lg border border-edge bg-surface p-5 text-left transition-colors hover:border-secondary"
+      >
+        <h2 class="text-lg font-semibold text-primary">Check users in bulk</h2>
+        <p class="mt-1 text-sm text-content-muted">Upload a CSV or XLSX and see which users already exist in LightSpeed VT.</p>
       </router-link>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 
 const router = useRouter()
@@ -57,5 +78,20 @@ async function checkCredentials() {
   }
 }
 
-onMounted(checkCredentials)
+function handleCredentialsSaved() {
+  checkCredentials()
+}
+
+onMounted(() => {
+  checkCredentials()
+  if (typeof window !== 'undefined') {
+    window.addEventListener('lsvt-credentials-saved', handleCredentialsSaved)
+  }
+})
+
+onUnmounted(() => {
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('lsvt-credentials-saved', handleCredentialsSaved)
+  }
+})
 </script>

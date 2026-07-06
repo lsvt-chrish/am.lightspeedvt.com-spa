@@ -2,10 +2,10 @@
   <div class="w-full max-w-5xl space-y-6">
     <div class="flex items-center gap-4">
       <router-link
-        to="/certifications"
+        to="/user-training-data"
         class="text-content-muted hover:text-primary text-sm"
       >
-        ← Certifications
+        ← User Training Data
       </router-link>
     </div>
     <h1 class="text-2xl font-bold text-primary">Users for a certification</h1>
