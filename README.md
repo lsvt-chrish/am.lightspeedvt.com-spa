@@ -33,7 +33,7 @@ make health
 ## Development vs production
 
 - **Development**: `make dev` (DB only, run backend/frontend on host with hot reload) or `make up-dev` (full stack with backend hot reload). Use `make clean` / `make down-volumes` only locally.
-- **Production**: Copy `.env.example` to `.env.prod`, set real secrets and optional `DOCKER_REGISTRY`. Then `make prod-up` (or `make deploy`). Use `make build-push` to build and push images when `DOCKER_REGISTRY` is set in `.env.prod`. Never commit `.env.prod`.
+- **Production**: Copy `.env.example` to `.env.prod`, set real secrets and `DOCKER_REGISTRY`/`IMAGE_TAG`. Images are built and pushed to GHCR by GitHub Actions (`.github/workflows/build-and-push.yml`) on every push to `main`. On the server, run `make pull-prod-container` (or `make deploy`) to pull the latest images and restart the stack. Never commit `.env.prod`.
 
 ## Makefile targets
 
@@ -50,11 +50,11 @@ make health
 | `make down` | Stop and remove containers |
 | `make down-volumes` | Down and remove volumes (dev only) |
 | `make restart` | Restart all containers |
-| **Production** | |
-| `make prod-up` | Start with prod overrides (needs .env.prod) |
+| **Production** (images built and pushed to GHCR by GitHub Actions) | |
+| `make pull-prod-container` | Pull latest images from registry and restart prod stack |
+| `make prod-up` | Start with prod overrides from existing local images (needs .env.prod) |
 | `make prod-down` | Stop prod stack |
-| `make build-push` | Build and push images (DOCKER_REGISTRY in .env.prod) |
-| `make deploy` | Alias for prod-up |
+| `make deploy` | Alias for pull-prod-container |
 | **Common** | |
 | `make logs` | Follow all logs |
 | `make logs-backend` | Backend logs only (and logs-frontend, logs-db) |

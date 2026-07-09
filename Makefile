@@ -5,8 +5,8 @@
 COMPOSE_DEV := -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD := -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod
 
-.PHONY: help build up down restart logs ps health shell-backend shell-frontend shell-db clean
-.PHONY: dev up-dev up-dev-build prod-up prod-down build-push deploy
+.PHONY: help build build-no-cache up up-build down restart logs ps health shell-backend shell-frontend shell-db clean
+.PHONY: dev up-dev up-dev-build prod-up prod-down deploy pull-prod-container down-volumes
 
 # Default target
 help:
@@ -22,11 +22,11 @@ help:
 	@echo "  make down-volumes   - Down and remove volumes (dev only)"
 	@echo "  make restart        - Restart all containers"
 	@echo ""
-	@echo "  Production:"
-	@echo "  make prod-up        - Start stack with prod overrides (.env.prod required)"
+	@echo "  Production (images built and pushed to GHCR by GitHub Actions):"
+	@echo "  make pull-prod-container - Pull latest images from registry and restart prod stack"
+	@echo "  make prod-up        - Start prod stack from existing local images (.env.prod required)"
 	@echo "  make prod-down      - Stop prod stack"
-	@echo "  make build-push     - Build and push images (set DOCKER_REGISTRY in .env.prod)"
-	@echo "  make deploy         - Alias for prod-up"
+	@echo "  make deploy         - Alias for pull-prod-container"
 	@echo ""
 	@echo "  Common:"
 	@echo "  make logs           - Follow logs from all services"
@@ -72,13 +72,12 @@ prod-up:
 prod-down:
 	docker compose $(COMPOSE_PROD) down
 
-# Build and push images; DOCKER_REGISTRY must be set in .env.prod
-build-push:
-	@test -f .env.prod || (echo "Create .env.prod from .env.example and set DOCKER_REGISTRY"; exit 1)
-	docker compose $(COMPOSE_PROD) build
-	docker compose $(COMPOSE_PROD) push
+deploy: pull-prod-container
 
-deploy: prod-up
+# Pull the newest published images from the registry and restart the prod stack
+pull-prod-container:
+	docker compose $(COMPOSE_PROD) pull
+	docker compose $(COMPOSE_PROD) up -d
 
 # Stop and remove containers, networks
 down:
