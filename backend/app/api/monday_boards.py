@@ -10,7 +10,7 @@ from app.core.admin_auth import require_admin
 from app.db.models import MondayBoard, MondayEvent
 from app.db.session import get_db
 
-router = APIRouter(prefix="/monday/boards", tags=["monday"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/monday/boards", tags=["monday"])
 
 
 class BucketMap(BaseModel):
@@ -42,7 +42,7 @@ class UnmappedValue(BaseModel):
     last_seen: datetime
 
 
-@router.get("/{board_id}/unmapped", response_model=list[UnmappedValue])
+@router.get("/{board_id}/unmapped", response_model=list[UnmappedValue], dependencies=[Depends(require_admin)])
 async def list_unmapped(board_id: str, db: AsyncSession = Depends(get_db)):
     """
     Group names and status labels this board has actually produced (via logged
@@ -88,7 +88,7 @@ async def list_unmapped(board_id: str, db: AsyncSession = Depends(get_db)):
     return sorted(out, key=lambda u: u.last_seen, reverse=True)
 
 
-@router.put("/{board_id}", response_model=BoardOut)
+@router.put("/{board_id}", response_model=BoardOut, dependencies=[Depends(require_admin)])
 async def upsert_board(board_id: str, body: BoardIn, db: AsyncSession = Depends(get_db)):
     if body.board_id != board_id:
         raise HTTPException(status_code=400, detail="board_id in body must match path")
@@ -111,7 +111,7 @@ async def upsert_board(board_id: str, body: BoardIn, db: AsyncSession = Depends(
     return row
 
 
-@router.delete("/{board_id}", status_code=204)
+@router.delete("/{board_id}", status_code=204, dependencies=[Depends(require_admin)])
 async def delete_board(board_id: str, db: AsyncSession = Depends(get_db)):
     existing = await db.scalar(select(MondayBoard).where(MondayBoard.board_id == board_id))
     if not existing:
