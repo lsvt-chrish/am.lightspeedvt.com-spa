@@ -90,6 +90,13 @@ def parse_webhook_payload(payload: dict) -> ParsedMondayEvent | None:
         new_value = None
         column_id = None
     elif "update_column_value" in raw_type or "change_status" in raw_type:
+        # update_column_value fires for ANY column, not just status columns.
+        # Status columns are always Monday's "color" column type; if columnType
+        # is present and says otherwise, this is an unrelated column edit (e.g.
+        # a text field) -- ignore it rather than mis-logging it as a status change.
+        column_type = event.get("columnType")
+        if column_type is not None and column_type != "color":
+            return None
         event_type = "status_changed"
         column_id = event.get("columnId") or event.get("column_id")
         previous_value = _label_text(event.get("previousValue"))
