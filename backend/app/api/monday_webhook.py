@@ -47,10 +47,30 @@ async def monday_webhook(request: Request, token: str | None = None, db: AsyncSe
         return {"status": "ignored"}
 
     board = await db.scalar(select(MondayBoard).where(MondayBoard.board_id == parsed.board_id))
-    department = board.department if board else None
-    bucket = resolve_bucket(board.bucket_map, parsed.group_name, parsed.new_value) if board else None
+    if board is None:
+        # First event ever seen for this board: auto-register it rather than
+        # rejecting the webhook. Department is a placeholder ("Unassigned")
+        # since we have no way to guess it -- someone needs to rename/assign
+        # it properly via the admin page, but nothing is lost or 500s in the
+        # meantime (and Monday.com won't be stuck retrying a failed delivery).
+        board = MondayBoard(
+            board_id=parsed.board_id,
+            name=f"Unregistered board {parsed.board_id}",
+            department="Unassigned",
+            bucket_map={},
+        )
+        db.add(board)
+        await db.flush()
+        logger.warning(
+            "monday_webhook: auto-registered previously-unknown board %s -- "
+            "configure its name/department/bucket_map via the admin page",
+            parsed.board_id,
+        )
 
-    if board is not None and bucket is None:
+    department = board.department
+    bucket = resolve_bucket(board.bucket_map, parsed.group_name, parsed.new_value)
+
+    if bucket is None:
         # First time this board has produced this group/status: auto-register it as
         # "excluded" rather than leaving it unmapped forever. A human can promote it
         # to open/pending/closed later via the board admin page; this just guarantees
