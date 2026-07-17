@@ -10,6 +10,8 @@ import CompletionsMappingPage from './views/CompletionsMappingPage.vue'
 import CheckUsersPage from './views/CheckUsersPage.vue'
 import CoursewareToolsPage from './views/CoursewareToolsPage.vue'
 import IntegrationToolsPage from './views/IntegrationToolsPage.vue'
+import OpsDashboardPage from './views/OpsDashboardPage.vue'
+import MondayBoardsAdminPage from './views/MondayBoardsAdminPage.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -27,6 +29,9 @@ const routes = [
 
   { path: '/integration-tools', name: 'IntegrationTools', component: IntegrationToolsPage },
   { path: '/integration-tools/link-builder', name: 'IntegrationToolsLinkBuilder', component: LinkBuilderPage },
+
+  { path: '/ops-dashboard', name: 'OpsDashboard', component: OpsDashboardPage },
+  { path: '/ops-dashboard/boards', name: 'OpsDashboardBoards', component: MondayBoardsAdminPage },
 
   { path: '/scan', redirect: () => ({ path: '/courseware-tools/scan' }) },
   { path: '/link-builder', redirect: () => ({ path: '/integration-tools/link-builder' }) },

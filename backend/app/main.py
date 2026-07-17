@@ -6,6 +6,9 @@ from app.api import (
     certifications as cert_api,
     completions_mapping as completions_mapping_api,
     health,
+    monday_boards as monday_boards_api,
+    monday_webhook as monday_webhook_api,
+    ops_dashboard as ops_dashboard_api,
     scan as scan_api,
     session as session_api,
     training_export as training_export_api,
@@ -40,6 +43,9 @@ app.include_router(training_export_api.router)
 app.include_router(completions_mapping_api.router)
 app.include_router(user_check_api.router)
 app.include_router(apl_api.router)
+app.include_router(monday_webhook_api.router)
+app.include_router(monday_boards_api.router)
+app.include_router(ops_dashboard_api.router)
 
 
 @app.get("/")

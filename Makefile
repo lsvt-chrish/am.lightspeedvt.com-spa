@@ -6,7 +6,7 @@ COMPOSE_DEV := -f docker-compose.yml -f docker-compose.dev.yml
 COMPOSE_PROD := -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod
 
 .PHONY: help build build-no-cache up up-build down restart logs ps health shell-backend shell-frontend shell-db clean
-.PHONY: dev up-dev up-dev-build prod-up prod-down deploy pull-prod-container down-volumes
+.PHONY: dev up-dev up-dev-build prod-up prod-down deploy pull-prod-container down-volumes migrate
 
 # Default target
 help:
@@ -36,6 +36,7 @@ help:
 	@echo "  make shell-backend  - Open shell in backend container"
 	@echo "  make shell-frontend - Open shell in frontend container"
 	@echo "  make shell-db        - Open psql in database container"
+	@echo "  make migrate        - Run Alembic migrations against the running db"
 	@echo "  make clean          - Remove containers, volumes, images (dev only)"
 
 # Build all images
@@ -119,6 +120,10 @@ health:
 	@curl -sf $(FRONTEND_URL)/health && echo " OK" || echo " FAIL"
 	@echo "=== Database (pg_isready) ==="
 	@docker compose exec -T db pg_isready -U $${POSTGRES_USER:-app} -d $${POSTGRES_DB:-appdb} && echo " OK" || echo " FAIL"
+
+# Run Alembic migrations against the running db, from inside the backend container
+migrate:
+	docker compose exec backend uv run alembic upgrade head
 
 # Shell into backend container
 shell-backend:

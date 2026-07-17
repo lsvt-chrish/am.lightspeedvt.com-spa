@@ -34,3 +34,6 @@ frontend/.vite-temp
 .env.local
 .env.*.local
 *.local
+
+# Monday.com board exports (contain real customer data - not for git history)
+monday_depts/

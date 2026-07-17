@@ -10,8 +10,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
 RUN pip install --no-cache-dir uv==0.10.6
 
 # Install dependencies and application (lockfile for reproducible installs)
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml uv.lock alembic.ini ./
 COPY app/ app/
+COPY migrations/ migrations/
 RUN uv sync --frozen --no-dev
 
 # Non-root user

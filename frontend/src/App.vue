@@ -36,6 +36,13 @@
       >
         Integration Tools
       </router-link>
+      <router-link
+        to="/ops-dashboard"
+        class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"
+        active-class="bg-surface text-primary"
+      >
+        Ops Dashboard
+      </router-link>
       <button
         type="button"
         class="mt-auto rounded-lg px-3 py-2 text-content-muted hover:bg-surface transition-colors flex items-center gap-2 w-full text-left"
