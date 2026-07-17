@@ -28,10 +28,19 @@
     </div>
 
     <div v-for="board in boards" :key="board.board_id" class="rounded-lg border border-edge bg-surface p-4 space-y-4">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="text-lg font-semibold text-primary">{{ board.name }}</h2>
-          <p class="text-xs text-content-muted">{{ board.department }} &middot; board_id {{ board.board_id }}</p>
+      <div class="flex items-center justify-between gap-4 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input
+            v-model="board.name"
+            class="rounded border border-edge bg-page text-primary font-semibold px-2 py-1 text-lg w-64"
+            placeholder="Board name"
+          />
+          <input
+            v-model="board.department"
+            class="rounded border border-edge bg-page text-content px-2 py-1 text-sm w-40"
+            placeholder="Department"
+          />
+          <span class="text-xs text-content-muted">board_id {{ board.board_id }}</span>
         </div>
         <button
           type="button"
