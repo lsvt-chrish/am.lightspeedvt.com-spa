@@ -11,6 +11,8 @@ services:
       - "${BACKEND_PORT:-8001}:8000"
     environment:
       - DATABASE_URL=${DATABASE_URL:-postgresql://app:appsecret@db:5432/appdb}
+      - MONDAY_WEBHOOK_TOKEN=${MONDAY_WEBHOOK_TOKEN:-}
+      - MONDAY_ACCOUNT_SUBDOMAIN=${MONDAY_ACCOUNT_SUBDOMAIN:-lightspeed-vt-company}
     depends_on:
       db:
         condition: service_healthy
