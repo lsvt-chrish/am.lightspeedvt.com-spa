@@ -45,6 +45,13 @@ class Config(BaseSettings):
     # links from ops-dashboard item drill-downs back to Monday.com.
     monday_account_subdomain: str = "lightspeed-vt-company"
 
+    # Shared HTTP Basic credentials gating the board-admin endpoints
+    # (/monday/boards/*). Interim solution until per-user accounts are
+    # needed; empty password means the admin routes refuse all requests
+    # rather than running open.
+    ops_admin_username: str = "admin"
+    ops_admin_password: str = ""
+
     @field_validator("redirect_allowlist", mode="before")
     @classmethod
     def parse_redirect_allowlist(cls, v: str) -> list[str]:
@@ -76,3 +83,5 @@ CERTIFICATIONS_USER_CACHE_TTL = settings.certifications_user_cache_ttl
 LIGHTSPEED_API_TIMEOUT = settings.lightspeed_api_timeout
 MONDAY_WEBHOOK_TOKEN = settings.monday_webhook_token
 MONDAY_ACCOUNT_SUBDOMAIN = settings.monday_account_subdomain
+OPS_ADMIN_USERNAME = settings.ops_admin_username
+OPS_ADMIN_PASSWORD = settings.ops_admin_password

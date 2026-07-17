@@ -6,10 +6,11 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.admin_auth import require_admin
 from app.db.models import MondayBoard, MondayEvent
 from app.db.session import get_db
 
-router = APIRouter(prefix="/monday/boards", tags=["monday"])
+router = APIRouter(prefix="/monday/boards", tags=["monday"], dependencies=[Depends(require_admin)])
 
 
 class BucketMap(BaseModel):
