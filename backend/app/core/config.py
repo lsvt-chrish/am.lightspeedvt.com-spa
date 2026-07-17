@@ -35,6 +35,12 @@ class Config(BaseSettings):
     certifications_user_cache_ttl: int = 300
     lightspeed_api_timeout: int = 30
 
+    # Monday.com webhook ingestion (ops dashboard)
+    # Monday automations don't sign outgoing webhook payloads, so the shared
+    # secret is embedded in the webhook URL itself, e.g.
+    # https://.../api/monday/webhook?token=<monday_webhook_token>
+    monday_webhook_token: str = ""
+
     @field_validator("redirect_allowlist", mode="before")
     @classmethod
     def parse_redirect_allowlist(cls, v: str) -> list[str]:
@@ -64,3 +70,4 @@ APL_USER_CACHE_TTL = settings.apl_user_cache_ttl
 CERTIFICATIONS_CACHE_TTL = settings.certifications_cache_ttl
 CERTIFICATIONS_USER_CACHE_TTL = settings.certifications_user_cache_ttl
 LIGHTSPEED_API_TIMEOUT = settings.lightspeed_api_timeout
+MONDAY_WEBHOOK_TOKEN = settings.monday_webhook_token
