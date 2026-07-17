@@ -16,7 +16,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import MondayEvent
+from app.core.config import MONDAY_ACCOUNT_SUBDOMAIN
+from app.db.models import MondayBoard, MondayEvent
 from app.db.session import get_db
 
 router = APIRouter(prefix="/ops-dashboard", tags=["monday"])
@@ -251,6 +252,124 @@ async def get_current(
 class BoardValues(BaseModel):
     groups: list[str]
     statuses: list[str]
+
+
+class ItemRow(BaseModel):
+    item_id: str
+    item_name: str | None
+    board_id: str
+    board_name: str | None
+    department: str | None
+    group_name: str | None
+    status: str | None
+    occurred_at: datetime
+    monday_url: str
+
+
+def _monday_url(board_id: str, item_id: str) -> str:
+    return f"https://{MONDAY_ACCOUNT_SUBDOMAIN}.monday.com/boards/{board_id}/pulses/{item_id}"
+
+
+async def _backfill_item_names(db: AsyncSession, item_ids: list[str]) -> dict[str, str | None]:
+    """item_name is only captured on the 'created' event; look it up for display elsewhere."""
+    if not item_ids:
+        return {}
+    rows = (
+        await db.execute(
+            select(MondayEvent.item_id, MondayEvent.item_name).where(
+                MondayEvent.event_type == "created", MondayEvent.item_id.in_(item_ids)
+            )
+        )
+    ).all()
+    return {item_id: name for item_id, name in rows}
+
+
+@router.get("/items", response_model=list[ItemRow])
+async def get_items(
+    metric: Literal["open", "pending", "new", "closed"],
+    period_start: datetime,
+    period_end: datetime,
+    department: str | None = None,
+    board_id: str | None = None,
+    group: str | None = None,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    The actual items behind one data point on a trend chart. open/pending are
+    snapshots as of period_end (matching exactly how the chart line itself is
+    computed); new/closed are event-based within [period_start, period_end).
+    """
+    board_names = dict(
+        (await db.execute(select(MondayBoard.board_id, MondayBoard.name))).all()
+    )
+
+    cols = (
+        MondayEvent.item_id,
+        MondayEvent.board_id,
+        MondayEvent.department,
+        MondayEvent.group_name,
+        MondayEvent.new_value,
+        MondayEvent.occurred_at,
+    )
+
+    if metric in ("open", "pending"):
+        latest_ids_stmt = (
+            select(MondayEvent.item_id, func.max(MondayEvent.id).label("latest_id"))
+            .where(MondayEvent.occurred_at <= period_end)
+            .group_by(MondayEvent.item_id)
+        )
+        latest_ids_stmt = _apply_scope_filters(latest_ids_stmt, department, board_id, group, status)
+        latest_ids = latest_ids_stmt.subquery()
+        stmt = (
+            select(*cols)
+            .join(latest_ids, MondayEvent.id == latest_ids.c.latest_id)
+            .where(MondayEvent.bucket == metric)
+            .order_by(MondayEvent.occurred_at.desc())
+            .limit(500)
+        )
+    elif metric == "new":
+        stmt = (
+            select(*cols)
+            .where(
+                MondayEvent.event_type == "created",
+                MondayEvent.occurred_at >= period_start,
+                MondayEvent.occurred_at < period_end,
+            )
+            .order_by(MondayEvent.occurred_at.desc())
+            .limit(500)
+        )
+        stmt = _apply_scope_filters(stmt, department, board_id, group, status)
+    else:  # closed
+        stmt = (
+            select(*cols)
+            .where(
+                MondayEvent.bucket == "closed",
+                MondayEvent.occurred_at >= period_start,
+                MondayEvent.occurred_at < period_end,
+            )
+            .order_by(MondayEvent.occurred_at.desc())
+            .limit(500)
+        )
+        stmt = _apply_scope_filters(stmt, department, board_id, group, status)
+
+    rows = (await db.execute(stmt)).all()
+    names = await _backfill_item_names(db, [r.item_id for r in rows])
+
+    return [
+        ItemRow(
+            item_id=r.item_id,
+            item_name=names.get(r.item_id),
+            board_id=r.board_id,
+            board_name=board_names.get(r.board_id),
+            department=r.department,
+            group_name=r.group_name,
+            status=r.new_value,
+            occurred_at=r.occurred_at,
+            monday_url=_monday_url(r.board_id, r.item_id),
+        )
+        for r in rows
+    ]
 
 
 @router.get("/board-values", response_model=BoardValues)
