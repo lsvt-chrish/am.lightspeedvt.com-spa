@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.admin_auth import require_admin
 from app.db.models import MondayBoard, MondayEvent
 from app.db.session import get_db
+from app.monday_events import resolve_bucket
 
 router = APIRouter(prefix="/monday/boards", tags=["monday"])
 
@@ -92,20 +93,34 @@ async def list_unmapped(board_id: str, db: AsyncSession = Depends(get_db)):
 async def upsert_board(board_id: str, body: BoardIn, db: AsyncSession = Depends(get_db)):
     if body.board_id != board_id:
         raise HTTPException(status_code=400, detail="board_id in body must match path")
+    bucket_map = body.bucket_map.model_dump()
     existing = await db.scalar(select(MondayBoard).where(MondayBoard.board_id == board_id))
     if existing:
         existing.name = body.name
         existing.department = body.department
-        existing.bucket_map = body.bucket_map.model_dump()
+        existing.bucket_map = bucket_map
         row = existing
     else:
         row = MondayBoard(
             board_id=board_id,
             name=body.name,
             department=body.department,
-            bucket_map=body.bucket_map.model_dump(),
+            bucket_map=bucket_map,
         )
         db.add(row)
+    await db.flush()
+
+    # department/bucket are computed once at ingest time and denormalized onto
+    # each event for query speed -- so editing a board here (renaming its
+    # department, or promoting a group/status out of "excluded") needs to
+    # recompute those columns for its existing events too, or historical data
+    # keeps showing the old value forever even though the board config is
+    # now correct.
+    events = (await db.scalars(select(MondayEvent).where(MondayEvent.board_id == board_id))).all()
+    for ev in events:
+        ev.department = body.department
+        ev.bucket = resolve_bucket(bucket_map, ev.group_name, ev.new_value)
+
     await db.commit()
     await db.refresh(row)
     return row
