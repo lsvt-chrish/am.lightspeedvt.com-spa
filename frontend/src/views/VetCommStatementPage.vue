@@ -5,7 +5,11 @@
       Enter the veteran's condition and claim details to generate a VA-ready personal statement.
     </p>
 
-    <div v-if="errorMessage" class="rounded border border-red-400/50 bg-red-400/10 px-3 py-2 text-sm text-red-400">
+    <div
+      v-if="errorMessage"
+      ref="errorBanner"
+      class="rounded border border-red-400/50 bg-red-400/10 px-3 py-2 text-sm text-red-400"
+    >
       {{ errorMessage }}
       <ul v-if="missingFields.length" class="mt-1 list-disc list-inside">
         <li v-for="f in missingFields" :key="f">{{ f }}</li>
@@ -18,7 +22,7 @@
         <input
           v-model="form.condition.name"
           type="text"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('name')"
           placeholder="Right knee strain"
         />
       </div>
@@ -27,7 +31,7 @@
         <label class="block text-sm font-medium text-content mb-1">Category</label>
         <select
           v-model="form.condition.category"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('category')"
         >
           <option value="" disabled>Select a category</option>
           <option v-for="c in categories" :key="c" :value="c">{{ formatLabel(c) }}</option>
@@ -38,7 +42,7 @@
         <label class="block text-sm font-medium text-content mb-1">Claim path</label>
         <select
           v-model="form.condition.claim_path"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('claim_path')"
         >
           <option value="" disabled>Select a claim path</option>
           <option v-for="p in claimPaths" :key="p" :value="p">{{ p }}</option>
@@ -50,7 +54,7 @@
         <textarea
           v-model="form.veteran_input.in_service_cause"
           rows="3"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('in_service_cause')"
           placeholder="What was the veteran doing during service that caused this?"
         ></textarea>
       </div>
@@ -60,7 +64,7 @@
         <textarea
           v-model="form.veteran_input.what_developed"
           rows="3"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('what_developed')"
           placeholder="What symptom or condition emerged, when, and how it progressed."
         ></textarea>
       </div>
@@ -72,7 +76,7 @@
         <textarea
           v-model="form.veteran_input.medical_care_during_service"
           rows="2"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('medical_care_during_service')"
           placeholder="Whether they got medical care during service and what it was."
         ></textarea>
       </div>
@@ -82,7 +86,7 @@
         <textarea
           v-model="form.veteran_input.current_impact"
           rows="3"
-          class="w-full rounded bg-surface border border-edge text-content px-3 py-2 focus:border-secondary focus:outline-none"
+          :class="fieldClass('current_impact')"
           placeholder="How the condition affects them today."
         ></textarea>
       </div>
@@ -155,11 +159,35 @@
     padding: 1.25rem;
     margin-bottom: 1rem;
     box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+
+    /* Page-scoped brand colors; do not affect the rest of the app. */
+    --primary-color: #082c4b;
+    --primary-color-accent: #ffffff;
+    --secondary-color: #ee232b;
+    --secondary-color-accent: #ffffff;
 }
 </style>
 
 <script setup>
-import { computed, reactive, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref } from 'vue'
+
+// This page is iframed into LightSpeed VT and must always render in light
+// mode, independent of the embedding app's dark-mode class/localStorage
+// preference or the visitor's OS setting (see useTheme.js, class-based).
+let hadDarkClass = false
+
+onMounted(() => {
+  hadDarkClass = document.documentElement.classList.contains('dark')
+  document.documentElement.classList.remove('dark')
+  document.body.classList.remove('dark')
+})
+
+onUnmounted(() => {
+  if (hadDarkClass) {
+    document.documentElement.classList.add('dark')
+    document.body.classList.add('dark')
+  }
+})
 
 const categories = [
   'hearing_loss', 'tinnitus', 'ptsd', 'mst', 'depression_anxiety', 'tbi',
@@ -188,11 +216,25 @@ const characterCount = ref(0)
 const attemptNumber = ref(1)
 const feedback = ref('')
 const copied = ref(false)
+const errorBanner = ref(null)
+
+const BASE_FIELD_CLASS =
+  'w-full rounded bg-surface border text-content px-3 py-2 focus:outline-none'
 
 function formatLabel(str) {
   return str
     .replace(/_/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase());
+}
+
+function isFieldMissing(key) {
+  return missingFields.value.some(f => f === key || f.endsWith(`.${key}`))
+}
+
+function fieldClass(key) {
+  return isFieldMissing(key)
+    ? `${BASE_FIELD_CLASS} border-red-400 ring-1 ring-red-400 focus:border-red-400`
+    : `${BASE_FIELD_CLASS} border-edge focus:border-secondary`
 }
 
 const canSubmit = computed(() =>
@@ -220,6 +262,8 @@ async function callApi(body) {
       const detail = data.detail || {}
       errorMessage.value = detail.message || 'Failed to generate statement.'
       missingFields.value = detail.required_fields_missing || []
+      await nextTick()
+      errorBanner.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       return
     }
     statement.value = data.statement
@@ -229,6 +273,8 @@ async function callApi(body) {
     copied.value = false
   } catch (e) {
     errorMessage.value = 'Network error contacting the server.'
+    await nextTick()
+    errorBanner.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
   } finally {
     submitting.value = false
   }
@@ -264,13 +310,43 @@ function startOver() {
   copied.value = false
 }
 
+function copyWithExecCommand() {
+  const textarea = document.createElement('textarea')
+  textarea.value = statement.value
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.focus()
+  textarea.select()
+  let ok = false
+  try {
+    ok = document.execCommand('copy')
+  } catch (e) {
+    ok = false
+  }
+  document.body.removeChild(textarea)
+  return ok
+}
+
 async function copyStatement() {
   try {
-    await navigator.clipboard.writeText(statement.value)
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(statement.value)
+    } else if (!copyWithExecCommand()) {
+      throw new Error('execCommand copy failed')
+    }
     copied.value = true
     setTimeout(() => { copied.value = false }, 2000)
   } catch (e) {
-    errorMessage.value = 'Could not copy to clipboard.'
+    // Clipboard API can be blocked by iframe permissions policy (this page is
+    // meant to be iframed into LightSpeed VT); fall back to execCommand before
+    // giving up.
+    if (copyWithExecCommand()) {
+      copied.value = true
+      setTimeout(() => { copied.value = false }, 2000)
+    } else {
+      errorMessage.value = 'Could not copy to clipboard.'
+    }
   }
 }
 </script>
