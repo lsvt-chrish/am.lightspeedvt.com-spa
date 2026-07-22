@@ -12,6 +12,7 @@ import CoursewareToolsPage from './views/CoursewareToolsPage.vue'
 import IntegrationToolsPage from './views/IntegrationToolsPage.vue'
 import OpsDashboardPage from './views/OpsDashboardPage.vue'
 import MondayBoardsAdminPage from './views/MondayBoardsAdminPage.vue'
+import VetCommStatementPage from './views/VetCommStatementPage.vue'
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -32,6 +33,10 @@ const routes = [
 
   { path: '/ops-dashboard', name: 'OpsDashboard', component: OpsDashboardPage },
   { path: '/ops-dashboard/boards', name: 'OpsDashboardBoards', component: MondayBoardsAdminPage },
+
+  // Not linked from any nav — reachable only via direct URL. Iframed into
+  // LightSpeed VT, so it renders without the app sidebar (see meta.chromeless).
+  { path: '/vetcomm/statements', name: 'VetCommStatements', component: VetCommStatementPage, meta: { chromeless: true } },
 
   { path: '/scan', redirect: () => ({ path: '/courseware-tools/scan' }) },
   { path: '/link-builder', redirect: () => ({ path: '/integration-tools/link-builder' }) },
