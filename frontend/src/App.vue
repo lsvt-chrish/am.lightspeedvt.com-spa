@@ -1,6 +1,6 @@
 <template>
   <div class="min-h-screen bg-page text-content flex">
-    <aside class="w-56 shrink-0 border-r border-edge flex flex-col p-4 gap-1">
+    <aside v-if="!route.meta.chromeless" class="w-56 shrink-0 border-r border-edge flex flex-col p-4 gap-1">
       <router-link
         to="/"
         class="rounded-lg px-3 py-2 text-primary hover:bg-surface transition-colors"

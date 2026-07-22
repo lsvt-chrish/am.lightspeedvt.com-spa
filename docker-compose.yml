@@ -10,11 +10,16 @@ services:
     ports:
       - "${BACKEND_PORT:-8001}:8000"
     environment:
+      - APP_ENV=${APP_ENV:-development}
+      - SECRET_KEY=${SECRET_KEY:-dev-secret-change-in-production}
       - DATABASE_URL=${DATABASE_URL:-postgresql://app:appsecret@db:5432/appdb}
       - MONDAY_WEBHOOK_TOKEN=${MONDAY_WEBHOOK_TOKEN:-}
       - MONDAY_ACCOUNT_SUBDOMAIN=${MONDAY_ACCOUNT_SUBDOMAIN:-lightspeed-vt-company}
       - OPS_ADMIN_USERNAME=${OPS_ADMIN_USERNAME:-admin}
       - OPS_ADMIN_PASSWORD=${OPS_ADMIN_PASSWORD:-}
+      - VETCOMM_API_BASE_URL=${VETCOMM_API_BASE_URL:-}
+      - VETCOMM_API_KEY=${VETCOMM_API_KEY:-}
+      - VETCOMM_SHARED_SECRET=${VETCOMM_SHARED_SECRET:-}
     depends_on:
       db:
         condition: service_healthy

@@ -13,6 +13,7 @@ from app.api import (
     session as session_api,
     training_export as training_export_api,
     user_check as user_check_api,
+    vetcomm as vetcomm_api,
 )
 from app.core.config import HOST, PORT
 from app.core.logging import setup_logging
@@ -46,6 +47,7 @@ app.include_router(apl_api.router)
 app.include_router(monday_webhook_api.router)
 app.include_router(monday_boards_api.router)
 app.include_router(ops_dashboard_api.router)
+app.include_router(vetcomm_api.router)
 
 
 @app.get("/")
