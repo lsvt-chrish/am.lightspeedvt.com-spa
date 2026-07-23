@@ -14,28 +14,54 @@
         <router-link to="/ops-dashboard/boards" class="osd-config-link">Configure board mappings &rarr;</router-link>
       </p>
 
+      <p class="osd-section-title">Live metrics</p>
       <p class="osd-notice">
-        Live snapshot &mdash; updates the moment a Monday.com board fires a status-change webhook. Use the
-        filters below to narrow by board, group, or status.
+        Real-time counts across all departments &mdash; refreshes automatically every 15 seconds, no
+        page reload needed. Scoped by the board/group/status filters below, if set.
+      </p>
+      <LiveMetricsBar :board-id="selectedBoard" :group="selectedGroup" :status="selectedStatus" />
+
+      <p class="osd-section-title">Trend analysis</p>
+      <p class="osd-sub">
+        Open / new / pending / closed trend per department, sourced from Monday.com status-change
+        webhooks. History only accumulates from the point each board's webhook was connected forward.
+        <router-link to="/ops-dashboard/boards" class="osd-config-link">Configure board mappings &rarr;</router-link>
       </p>
 
       <div class="osd-form">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <p class="osd-section-title" style="margin:0;">Filters</p>
-          <div
-            class="osd-view-toggle"
-            title="Granularity of each chart data point: one dot per week, or one per calendar month. Independent of the From/To range below."
-          >
-            <button
-              v-for="p in ['week', 'month']"
-              :key="p"
-              type="button"
-              class="osd-view-btn"
-              :class="{ on: period === p }"
-              @click="setPeriod(p)"
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <div
+              class="osd-view-toggle"
+              title="Compare the selected range against a comparable prior period, overlaid as a dashed line on each chart."
             >
-              {{ p }}ly
-            </button>
+              <button
+                v-for="c in COMPARE_OPTIONS"
+                :key="c.value"
+                type="button"
+                class="osd-view-btn"
+                :class="{ on: compareMode === c.value }"
+                @click="setCompareMode(c.value)"
+              >
+                {{ c.label }}
+              </button>
+            </div>
+            <div
+              class="osd-view-toggle"
+              title="Granularity of each chart data point: one dot per week, or one per calendar month. Independent of the From/To range below."
+            >
+              <button
+                v-for="p in ['week', 'month']"
+                :key="p"
+                type="button"
+                class="osd-view-btn"
+                :class="{ on: period === p }"
+                @click="setPeriod(p)"
+              >
+                {{ p }}ly
+              </button>
+            </div>
           </div>
         </div>
 
@@ -122,6 +148,7 @@
                 :points="seriesFor(dept, metric)"
                 :week-labels="periodLabelsFor(dept)"
                 :mode="FLOW_METRICS.includes(metric) ? 'sum' : 'latest'"
+                :compare-points="previousSeriesFor(dept, metric)"
                 title="Click a point to see the items behind it"
                 @point-click="onPointClick(dept, metric, $event)"
               />
@@ -175,9 +202,24 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import TrendSparkline from '../components/TrendSparkline.vue'
+import LiveMetricsBar from '../components/LiveMetricsBar.vue'
 
 const METRICS = ['new', 'open', 'pending', 'closed']
 const FLOW_METRICS = ['new', 'closed'] // summed across the selected range, not just the latest period
+
+const COMPARE_OPTIONS = [
+  { value: '', label: 'No compare' },
+  { value: 'previous_day', label: 'Prev day' },
+  { value: 'previous_week', label: 'Prev week' },
+  { value: 'previous_month', label: 'Prev month' },
+]
+const compareMode = ref('')
+
+function setCompareMode(value) {
+  if (compareMode.value === value) return
+  compareMode.value = value
+  loadAll()
+}
 
 function statusFor(dept) {
   const open = latestOf(dept, 'open')
@@ -218,6 +260,7 @@ const boardValues = ref({ groups: [], statuses: [] })
 
 const departments = ref([])
 const trends = ref({}) // department -> period points array
+const previousTrends = ref({}) // department -> prior-period points array, when compareMode is set
 const loading = ref(true)
 const error = ref(null)
 
@@ -228,6 +271,11 @@ const panelError = ref(null)
 
 function seriesFor(dept, metric) {
   return (trends.value[dept] || []).map((p) => p[metric])
+}
+
+function previousSeriesFor(dept, metric) {
+  const previous = previousTrends.value[dept]
+  return previous ? previous.map((p) => p[metric]) : null
 }
 
 function periodLabelsFor(dept) {
@@ -269,6 +317,7 @@ function scopeParams() {
   if (selectedBoard.value) params.set('board_id', selectedBoard.value)
   if (selectedGroup.value) params.set('group', selectedGroup.value)
   if (selectedStatus.value) params.set('status', selectedStatus.value)
+  if (compareMode.value) params.set('compare', compareMode.value)
   return params
 }
 
@@ -290,6 +339,7 @@ async function loadAll() {
         if (!r.ok) return
         const data = await r.json()
         trends.value[dept] = data.points
+        previousTrends.value[dept] = data.previous_points || null
       })
     )
   } catch (e) {
