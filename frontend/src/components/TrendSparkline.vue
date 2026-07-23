@@ -73,6 +73,7 @@ const chartData = computed(() => {
       backgroundColor: 'transparent',
       borderWidth: 2,
       pointRadius: 2,
+      pointHitRadius: 12,
       tension: 0.3,
     },
   ]
@@ -97,6 +98,10 @@ const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
   animation: false,
+  // Match click hit-testing to the tooltip's forgiving "nearest column" behavior below
+  // (default click detection requires landing exactly on the tiny 2px point, which the
+  // tooltip box visually sitting over the point makes practically impossible to hit).
+  interaction: { mode: 'index', intersect: false },
   onClick(_evt, elements) {
     if (elements.length) emit('point-click', elements[0].index)
   },
