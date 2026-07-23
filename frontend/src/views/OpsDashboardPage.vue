@@ -34,7 +34,7 @@
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             <div
               class="osd-view-toggle"
-              title="Compare the selected range against a comparable prior period, overlaid as a dashed line on each chart."
+              title="Compare the selected range against a comparable prior period, overlaid as a dashed line on each chart. Also sets each chart's granularity: day-over-day, week-over-week, or month-over-month."
             >
               <button
                 v-for="c in COMPARE_OPTIONS"
@@ -45,21 +45,6 @@
                 @click="setCompareMode(c.value)"
               >
                 {{ c.label }}
-              </button>
-            </div>
-            <div
-              class="osd-view-toggle"
-              title="Granularity of each chart data point: one dot per week, or one per calendar month. Independent of the From/To range below."
-            >
-              <button
-                v-for="p in ['week', 'month']"
-                :key="p"
-                type="button"
-                class="osd-view-btn"
-                :class="{ on: period === p }"
-                @click="setPeriod(p)"
-              >
-                {{ p }}ly
               </button>
             </div>
           </div>
@@ -200,7 +185,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import TrendSparkline from '../components/TrendSparkline.vue'
 import LiveMetricsBar from '../components/LiveMetricsBar.vue'
 
@@ -214,6 +199,11 @@ const COMPARE_OPTIONS = [
   { value: 'previous_month', label: 'Prev month' },
 ]
 const compareMode = ref('')
+
+// Chart granularity follows the compare choice: day-over-day, week-over-week,
+// month-over-month. With no compare selected, default to weekly.
+const PERIOD_BY_COMPARE = { '': 'week', previous_day: 'day', previous_week: 'week', previous_month: 'month' }
+const period = computed(() => PERIOD_BY_COMPARE[compareMode.value])
 
 function setCompareMode(value) {
   if (compareMode.value === value) return
@@ -246,7 +236,6 @@ function isoDate(d) {
   return d.toISOString().slice(0, 10)
 }
 
-const period = ref('week')
 const today = new Date()
 const eightWeeksAgo = new Date(today.getTime() - 8 * 7 * 24 * 60 * 60 * 1000)
 const startDate = ref(isoDate(eightWeeksAgo))
@@ -286,12 +275,6 @@ function periodLabelsFor(dept) {
 function latestOf(dept, metric) {
   const series = trends.value[dept] || []
   return series.length ? series[series.length - 1][metric] : 0
-}
-
-function setPeriod(p) {
-  if (period.value === p) return
-  period.value = p
-  loadAll()
 }
 
 async function onBoardChange() {

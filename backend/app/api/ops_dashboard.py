@@ -23,7 +23,7 @@ from app.db.session import get_db
 router = APIRouter(prefix="/ops-dashboard", tags=["monday"])
 
 BUCKETS = ("open", "new", "pending", "closed", "excluded")
-Period = Literal["week", "month"]
+Period = Literal["day", "week", "month"]
 
 
 def _apply_scope_filters(stmt, department, board_id, group_name, status_label):
@@ -141,7 +141,13 @@ def _period_boundaries(
     """
     if start is not None and end is not None:
         bounds: list[tuple[datetime, datetime]] = []
-        if period == "week":
+        if period == "day":
+            cur = start
+            while cur < end:
+                nxt = min(cur + timedelta(days=1), end)
+                bounds.append((cur, nxt))
+                cur = nxt
+        elif period == "week":
             cur = start
             while cur < end:
                 nxt = min(cur + timedelta(days=7), end)
@@ -156,6 +162,15 @@ def _period_boundaries(
         return bounds
 
     now = datetime.now(tz=timezone.utc)
+    if period == "day":
+        end = now
+        bounds = []
+        for _ in range(count):
+            s = end - timedelta(days=1)
+            bounds.append((s, end))
+            end = s
+        return list(reversed(bounds))
+
     if period == "week":
         end = now
         bounds = []
