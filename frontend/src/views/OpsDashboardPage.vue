@@ -139,7 +139,7 @@
 import { ref, onMounted } from 'vue'
 import TrendSparkline from '../components/TrendSparkline.vue'
 
-const METRICS = ['open', 'new', 'pending', 'closed']
+const METRICS = ['new', 'open', 'pending', 'closed']
 const FLOW_METRICS = ['new', 'closed'] // summed across the selected range, not just the latest period
 
 function isoDate(d) {
