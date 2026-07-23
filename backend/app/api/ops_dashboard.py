@@ -23,7 +23,7 @@ from app.db.session import get_db
 router = APIRouter(prefix="/ops-dashboard", tags=["monday"])
 
 BUCKETS = ("open", "new", "pending", "closed", "excluded")
-Period = Literal["week", "month"]
+Period = Literal["day", "week", "month"]
 
 
 def _apply_scope_filters(stmt, department, board_id, group_name, status_label):
@@ -114,6 +114,12 @@ def _shift_months(dt: datetime, delta: int) -> datetime:
     return dt.replace(year=year, month=month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
+def _shift_range(start: datetime, end: datetime) -> tuple[datetime, datetime]:
+    """Shift a [start, end) window back by its own length -- the immediately preceding period of equal size."""
+    span = end - start
+    return start - span, end - span
+
+
 def _period_boundaries(
     period: Period,
     count: int = 8,
@@ -127,7 +133,13 @@ def _period_boundaries(
     """
     if start is not None and end is not None:
         bounds: list[tuple[datetime, datetime]] = []
-        if period == "week":
+        if period == "day":
+            cur = start
+            while cur < end:
+                nxt = min(cur + timedelta(days=1), end)
+                bounds.append((cur, nxt))
+                cur = nxt
+        elif period == "week":
             cur = start
             while cur < end:
                 nxt = min(cur + timedelta(days=7), end)
@@ -142,6 +154,15 @@ def _period_boundaries(
         return bounds
 
     now = datetime.now(tz=timezone.utc)
+    if period == "day":
+        end = now
+        bounds = []
+        for _ in range(count):
+            s = end - timedelta(days=1)
+            bounds.append((s, end))
+            end = s
+        return list(reversed(bounds))
+
     if period == "week":
         end = now
         bounds = []
@@ -176,6 +197,7 @@ class DepartmentTrend(BaseModel):
     department: str | None
     period: Period
     points: list[PeriodPoint]
+    previous_points: list[PeriodPoint] | None = None
 
 
 def _to_utc_datetime(d: date, end_of_day: bool = False) -> datetime:
@@ -183,29 +205,14 @@ def _to_utc_datetime(d: date, end_of_day: bool = False) -> datetime:
     return dt + timedelta(days=1) if end_of_day else dt
 
 
-@router.get("/trend", response_model=DepartmentTrend)
-async def get_trend(
-    department: str | None = None,
-    board_id: str | None = None,
-    group: str | None = None,
-    status: str | None = None,
-    period: Period = "week",
-    count: int = 8,
-    start: date | None = None,
-    end: date | None = None,
-    db: AsyncSession = Depends(get_db),
-):
-    if start is not None and end is not None:
-        if start > end:
-            raise HTTPException(status_code=400, detail="start must be before end")
-        start_dt = _to_utc_datetime(start)
-        end_dt = _to_utc_datetime(end, end_of_day=True)
-        boundaries = _period_boundaries(period, start=start_dt, end=end_dt)
-    else:
-        if count < 1 or count > 104:
-            raise HTTPException(status_code=400, detail="count must be between 1 and 104")
-        boundaries = _period_boundaries(period, count=count)
-
+async def _build_points(
+    db: AsyncSession,
+    boundaries: list[tuple[datetime, datetime]],
+    department: str | None,
+    board_id: str | None,
+    group: str | None,
+    status: str | None,
+) -> list[PeriodPoint]:
     points: list[PeriodPoint] = []
     for period_start, period_end in boundaries:
         snapshot = await _bucket_counts_as_of(db, period_end, department, board_id, group, status)
@@ -221,7 +228,64 @@ async def get_trend(
                 excluded=snapshot["excluded"],
             )
         )
-    return DepartmentTrend(department=department, period=period, points=points)
+    return points
+
+
+@router.get("/trend", response_model=DepartmentTrend)
+async def get_trend(
+    department: str | None = None,
+    board_id: str | None = None,
+    group: str | None = None,
+    status: str | None = None,
+    period: Period = "week",
+    count: int = 8,
+    start: date | None = None,
+    end: date | None = None,
+    compare: bool = False,
+    db: AsyncSession = Depends(get_db),
+):
+    if start is not None and end is not None:
+        if start > end:
+            raise HTTPException(status_code=400, detail="start must be before end")
+        start_dt = _to_utc_datetime(start)
+        end_dt = _to_utc_datetime(end, end_of_day=True)
+        boundaries = _period_boundaries(period, start=start_dt, end=end_dt)
+    else:
+        if count < 1 or count > 104:
+            raise HTTPException(status_code=400, detail="count must be between 1 and 104")
+        boundaries = _period_boundaries(period, count=count)
+        start_dt, end_dt = boundaries[0][0], boundaries[-1][1]
+
+    points = await _build_points(db, boundaries, department, board_id, group, status)
+
+    previous_points = None
+    if compare:
+        prev_start, prev_end = _shift_range(start_dt, end_dt)
+        previous_boundaries = _period_boundaries(period, start=prev_start, end=prev_end)
+        previous_points = await _build_points(db, previous_boundaries, department, board_id, group, status)
+
+    return DepartmentTrend(department=department, period=period, points=points, previous_points=previous_points)
+
+
+class LiveTotals(BaseModel):
+    new: int
+    open: int
+    pending: int
+    closed: int
+    as_of: datetime
+
+
+@router.get("/live-totals", response_model=LiveTotals)
+async def get_live_totals(
+    board_id: str | None = None,
+    group: str | None = None,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """Org-wide (all departments combined) current bucket counts, for the live snapshot section."""
+    now = datetime.now(tz=timezone.utc)
+    counts = await _bucket_counts_as_of(db, now, None, board_id, group, status)
+    return LiveTotals(new=counts["new"], open=counts["open"], pending=counts["pending"], closed=counts["closed"], as_of=now)
 
 
 class CurrentCounts(BaseModel):
