@@ -282,10 +282,25 @@ async def get_live_totals(
     status: str | None = None,
     db: AsyncSession = Depends(get_db),
 ):
-    """Org-wide (all departments combined) current bucket counts, for the live snapshot section."""
+    """
+    Org-wide (all departments combined) live snapshot: open/pending/closed are the
+    current bucket per item (as of now), matching the trend section's snapshot
+    buckets. "new" is instead items created today (calendar day, UTC) -- a bucket
+    snapshot would undercount it since items typically move out of "new" quickly.
+    """
     now = datetime.now(tz=timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
     counts = await _bucket_counts_as_of(db, now, None, board_id, group, status)
-    return LiveTotals(new=counts["new"], open=counts["open"], pending=counts["pending"], closed=counts["closed"], as_of=now)
+
+    new_stmt = select(func.count()).where(
+        MondayEvent.event_type == "created",
+        MondayEvent.occurred_at >= today_start,
+    )
+    new_stmt = _apply_scope_filters(new_stmt, None, board_id, group, status)
+    new_today = await db.scalar(new_stmt) or 0
+
+    return LiveTotals(new=new_today, open=counts["open"], pending=counts["pending"], closed=counts["closed"], as_of=now)
 
 
 class CurrentCounts(BaseModel):

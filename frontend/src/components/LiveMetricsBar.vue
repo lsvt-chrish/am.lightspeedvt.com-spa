@@ -1,9 +1,15 @@
 <template>
   <div class="osd-exec-strip">
-    <div v-for="m in METRICS" :key="m" class="osd-exec-tile" :class="m">
+    <div
+      v-for="m in METRICS"
+      :key="m"
+      class="osd-exec-tile"
+      :class="m"
+      :title="m === 'new' ? 'Items created today (UTC), not a bucket snapshot like the others.' : ''"
+    >
       <div class="osd-exec-label">{{ m }}</div>
       <div class="osd-exec-val">{{ totals[m] }}</div>
-      <div class="osd-exec-delta">{{ asOfLabel }}</div>
+      <div class="osd-exec-delta">{{ m === 'new' ? 'created today' : asOfLabel }}</div>
     </div>
   </div>
 </template>
