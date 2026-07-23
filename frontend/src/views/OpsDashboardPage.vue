@@ -31,23 +31,13 @@
       <div class="osd-form">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
           <p class="osd-section-title" style="margin:0;">Filters</p>
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            <div
-              class="osd-view-toggle"
-              title="Compare the selected range against a comparable prior period, overlaid as a dashed line on each chart. Also sets each chart's granularity: day-over-day, week-over-week, or month-over-month."
-            >
-              <button
-                v-for="c in COMPARE_OPTIONS"
-                :key="c.value"
-                type="button"
-                class="osd-view-btn"
-                :class="{ on: compareMode === c.value }"
-                @click="setCompareMode(c.value)"
-              >
-                {{ c.label }}
-              </button>
-            </div>
-          </div>
+          <label
+            class="osd-compare-toggle"
+            title="Overlay the immediately preceding period of equal length (e.g. selecting the last 7 days compares against the 7 days before that) as a dashed line on each chart."
+          >
+            <input type="checkbox" v-model="compareEnabled" @change="loadAll" />
+            Compare to previous period
+          </label>
         </div>
 
         <div class="osd-form-grid">
@@ -192,24 +182,7 @@ import LiveMetricsBar from '../components/LiveMetricsBar.vue'
 const METRICS = ['new', 'open', 'pending', 'closed']
 const FLOW_METRICS = ['new', 'closed'] // summed across the selected range, not just the latest period
 
-const COMPARE_OPTIONS = [
-  { value: '', label: 'No compare' },
-  { value: 'previous_day', label: 'Prev day' },
-  { value: 'previous_week', label: 'Prev week' },
-  { value: 'previous_month', label: 'Prev month' },
-]
-const compareMode = ref('')
-
-// Chart granularity follows the compare choice: day-over-day, week-over-week,
-// month-over-month. With no compare selected, default to weekly.
-const PERIOD_BY_COMPARE = { '': 'week', previous_day: 'day', previous_week: 'week', previous_month: 'month' }
-const period = computed(() => PERIOD_BY_COMPARE[compareMode.value])
-
-function setCompareMode(value) {
-  if (compareMode.value === value) return
-  compareMode.value = value
-  loadAll()
-}
+const compareEnabled = ref(false)
 
 function statusFor(dept) {
   const open = latestOf(dept, 'open')
@@ -241,6 +214,15 @@ const eightWeeksAgo = new Date(today.getTime() - 8 * 7 * 24 * 60 * 60 * 1000)
 const startDate = ref(isoDate(eightWeeksAgo))
 const endDate = ref(isoDate(today))
 
+// Chart granularity auto-scales to the selected range, so it stays readable
+// whether comparing a few days or several months -- no separate control needed.
+const period = computed(() => {
+  const spanDays = (new Date(endDate.value) - new Date(startDate.value)) / (24 * 60 * 60 * 1000)
+  if (spanDays <= 14) return 'day'
+  if (spanDays <= 120) return 'week'
+  return 'month'
+})
+
 const boards = ref([])
 const selectedBoard = ref('')
 const selectedGroup = ref('')
@@ -249,7 +231,7 @@ const boardValues = ref({ groups: [], statuses: [] })
 
 const departments = ref([])
 const trends = ref({}) // department -> period points array
-const previousTrends = ref({}) // department -> prior-period points array, when compareMode is set
+const previousTrends = ref({}) // department -> prior-period points array, when compareEnabled is true
 const loading = ref(true)
 const error = ref(null)
 
@@ -300,7 +282,7 @@ function scopeParams() {
   if (selectedBoard.value) params.set('board_id', selectedBoard.value)
   if (selectedGroup.value) params.set('group', selectedGroup.value)
   if (selectedStatus.value) params.set('status', selectedStatus.value)
-  if (compareMode.value) params.set('compare', compareMode.value)
+  if (compareEnabled.value) params.set('compare', 'true')
   return params
 }
 
@@ -413,6 +395,12 @@ onMounted(async () => {
 }
 .osd-field select:focus, .osd-field input:focus { outline: none; border-color: var(--light-blue); }
 .osd-view-toggle { display: flex; gap: 4px; background: var(--light-grey); border: 1px solid var(--border); border-radius: 9999px; padding: 3px; flex: 0 0 auto; }
+.osd-compare-toggle {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dark);
+  background: var(--light-grey); border: 1px solid var(--border); border-radius: 9999px; padding: 6px 14px;
+  cursor: pointer; user-select: none;
+}
+.osd-compare-toggle input { accent-color: var(--light-blue); cursor: pointer; }
 .osd-view-btn { font-family: var(--font-body); font-size: 12px; font-weight: 500; padding: 5px 14px; border-radius: 9999px; border: none; background: transparent; color: var(--darker-grey); cursor: pointer; }
 .osd-view-btn.on { background: var(--dark-blue); color: var(--light); }
 .osd-empty { text-align: center; padding: 30px; color: var(--darker-grey); font-size: 13px; }

@@ -114,18 +114,10 @@ def _shift_months(dt: datetime, delta: int) -> datetime:
     return dt.replace(year=year, month=month + 1, day=1, hour=0, minute=0, second=0, microsecond=0)
 
 
-Compare = Literal["previous_day", "previous_week", "previous_month"]
-
-
-def _shift_range(start: datetime, end: datetime, compare: Compare) -> tuple[datetime, datetime]:
-    """Shift a [start, end) window back by a fixed offset for period-over-period comparison."""
-    if compare == "previous_day":
-        delta = timedelta(days=1)
-        return start - delta, end - delta
-    if compare == "previous_week":
-        delta = timedelta(days=7)
-        return start - delta, end - delta
-    return _shift_months(start, -1), _shift_months(end, -1)
+def _shift_range(start: datetime, end: datetime) -> tuple[datetime, datetime]:
+    """Shift a [start, end) window back by its own length -- the immediately preceding period of equal size."""
+    span = end - start
+    return start - span, end - span
 
 
 def _period_boundaries(
@@ -249,7 +241,7 @@ async def get_trend(
     count: int = 8,
     start: date | None = None,
     end: date | None = None,
-    compare: Compare | None = None,
+    compare: bool = False,
     db: AsyncSession = Depends(get_db),
 ):
     if start is not None and end is not None:
@@ -267,8 +259,8 @@ async def get_trend(
     points = await _build_points(db, boundaries, department, board_id, group, status)
 
     previous_points = None
-    if compare is not None:
-        prev_start, prev_end = _shift_range(start_dt, end_dt, compare)
+    if compare:
+        prev_start, prev_end = _shift_range(start_dt, end_dt)
         previous_boundaries = _period_boundaries(period, start=prev_start, end=prev_end)
         previous_points = await _build_points(db, previous_boundaries, department, board_id, group, status)
 
