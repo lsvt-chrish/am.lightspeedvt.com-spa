@@ -342,6 +342,7 @@ class ItemRow(BaseModel):
     group_name: str | None
     status: str | None
     occurred_at: datetime
+    created_at: datetime | None
     monday_url: str
 
 
@@ -349,18 +350,20 @@ def _monday_url(board_id: str, item_id: str) -> str:
     return f"https://{MONDAY_ACCOUNT_SUBDOMAIN}.monday.com/boards/{board_id}/pulses/{item_id}"
 
 
-async def _backfill_item_names(db: AsyncSession, item_ids: list[str]) -> dict[str, str | None]:
-    """item_name is only captured on the 'created' event; look it up for display elsewhere."""
+async def _backfill_item_names(
+    db: AsyncSession, item_ids: list[str]
+) -> dict[str, tuple[str | None, datetime | None]]:
+    """item_name and created_at are only captured on the 'created' event; look them up for display elsewhere."""
     if not item_ids:
         return {}
     rows = (
         await db.execute(
-            select(MondayEvent.item_id, MondayEvent.item_name).where(
+            select(MondayEvent.item_id, MondayEvent.item_name, MondayEvent.occurred_at).where(
                 MondayEvent.event_type == "created", MondayEvent.item_id.in_(item_ids)
             )
         )
     ).all()
-    return {item_id: name for item_id, name in rows}
+    return {item_id: (name, occurred_at) for item_id, name, occurred_at in rows}
 
 
 @router.get("/items", response_model=list[ItemRow])
@@ -433,18 +436,19 @@ async def get_items(
         stmt = _apply_scope_filters(stmt, department, board_id, group, status)
 
     rows = (await db.execute(stmt)).all()
-    names = await _backfill_item_names(db, [r.item_id for r in rows])
+    names_and_created = await _backfill_item_names(db, [r.item_id for r in rows])
 
     return [
         ItemRow(
             item_id=r.item_id,
-            item_name=names.get(r.item_id),
+            item_name=names_and_created.get(r.item_id, (None, None))[0],
             board_id=r.board_id,
             board_name=board_names.get(r.board_id),
             department=r.department,
             group_name=r.group_name,
             status=r.new_value,
             occurred_at=r.occurred_at,
+            created_at=names_and_created.get(r.item_id, (None, None))[1],
             monday_url=_monday_url(r.board_id, r.item_id),
         )
         for r in rows

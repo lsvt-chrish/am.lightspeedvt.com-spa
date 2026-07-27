@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
+from app.core.config import settings
 from app.db.models import MondayBoard, MondayEvent
 from app.db.session import AsyncSessionLocal
 
@@ -30,6 +31,10 @@ def random_time_after(start: datetime, max_days: int) -> datetime:
 
 
 async def seed():
+    if settings.app_env != "development":
+        print(f"Refusing to seed: app_env is '{settings.app_env}', not 'development'.")
+        return
+
     async with AsyncSessionLocal() as db:
         boards = (await db.execute(select(MondayBoard))).scalars().all()
         if not boards:

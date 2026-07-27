@@ -149,6 +149,7 @@
                     <th class="pr-3 py-1">Item</th>
                     <th class="pr-3 py-1">Board</th>
                     <th class="pr-3 py-1">Group / Status</th>
+                    <th class="pr-3 py-1">Created</th>
                     <th class="pr-3 py-1">Updated</th>
                   </tr>
                 </thead>
@@ -161,6 +162,7 @@
                     </td>
                     <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.board_name || it.board_id }}</td>
                     <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.status || it.group_name || '—' }}</td>
+                    <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.created_at ? new Date(it.created_at).toLocaleDateString() : '—' }}</td>
                     <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ new Date(it.occurred_at).toLocaleDateString() }}</td>
                   </tr>
                 </tbody>
@@ -210,8 +212,8 @@ function isoDate(d) {
 }
 
 const today = new Date()
-const eightWeeksAgo = new Date(today.getTime() - 8 * 7 * 24 * 60 * 60 * 1000)
-const startDate = ref(isoDate(eightWeeksAgo))
+const oneWeekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+const startDate = ref(isoDate(oneWeekAgo))
 const endDate = ref(isoDate(today))
 
 // Chart granularity auto-scales to the selected range, so it stays readable
