@@ -10,6 +10,7 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -45,6 +46,14 @@ async def monday_webhook(request: Request, token: str | None = None, db: AsyncSe
     if parsed is None:
         logger.info("monday_webhook: ignoring unrecognized/unsupported event payload")
         return {"status": "ignored"}
+
+    if parsed.trigger_uuid is not None:
+        existing = await db.scalar(
+            select(MondayEvent.id).where(MondayEvent.trigger_uuid == parsed.trigger_uuid)
+        )
+        if existing is not None:
+            logger.info("monday_webhook: ignoring duplicate delivery %s (retry)", parsed.trigger_uuid)
+            return {"status": "duplicate"}
 
     board = await db.scalar(select(MondayBoard).where(MondayBoard.board_id == parsed.board_id))
     if board is None:
@@ -111,7 +120,14 @@ async def monday_webhook(request: Request, token: str | None = None, db: AsyncSe
             bucket=bucket,
             occurred_at=parsed.occurred_at,
             raw_payload=payload,
+            trigger_uuid=parsed.trigger_uuid,
         )
     )
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Concurrent retry of the same delivery raced past the pre-check above.
+        await db.rollback()
+        logger.info("monday_webhook: ignoring duplicate delivery %s (race)", parsed.trigger_uuid)
+        return {"status": "duplicate"}
     return {"status": "ok"}

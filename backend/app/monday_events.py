@@ -4,7 +4,8 @@ Parsing + bucket resolution for Monday.com automation webhook payloads.
 Monday.com's "send webhook" automation recipes POST an envelope shaped like
 {"event": {...}}. The two events this integration cares about:
 
-  - item created:        event.type contains "create" (e.g. "create_pulse")
+  - item created:         event.type == "create_pulse" (NOT create_update/create_subitem,
+    which fire for comments/subitems on existing items, not new top-level tickets).
   - status column change: event.type contains "update_column_value", with the
     changed column's new/previous value under event.value / event.previousValue
     as {"label": {"text": "..."}}.
@@ -30,6 +31,7 @@ class ParsedMondayEvent:
         previous_value: str | None,
         new_value: str | None,
         occurred_at: datetime,
+        trigger_uuid: str | None,
     ) -> None:
         self.board_id = board_id
         self.item_id = item_id
@@ -41,6 +43,7 @@ class ParsedMondayEvent:
         self.previous_value = previous_value
         self.new_value = new_value
         self.occurred_at = occurred_at
+        self.trigger_uuid = trigger_uuid
 
 
 def _label_text(value: Any) -> str | None:
@@ -84,7 +87,7 @@ def parse_webhook_payload(payload: dict) -> ParsedMondayEvent | None:
     if board_id is None or item_id is None:
         return None
 
-    if "create" in raw_type:
+    if raw_type == "create_pulse":
         event_type = "created"
         previous_value = None
         new_value = None
@@ -115,6 +118,7 @@ def parse_webhook_payload(payload: dict) -> ParsedMondayEvent | None:
         previous_value=previous_value,
         new_value=new_value,
         occurred_at=_trigger_time(event),
+        trigger_uuid=event.get("triggerUuid"),
     )
 
 

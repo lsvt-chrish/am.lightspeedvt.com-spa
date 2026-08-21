@@ -66,4 +66,8 @@ class MondayEvent(Base):
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     raw_payload: Mapped[dict] = mapped_column(JSON)
 
+    # Monday's per-delivery event id, used to dedup retried webhook deliveries.
+    # Nullable because seeded/historical rows predate this field.
+    trigger_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
+
     board: Mapped["MondayBoard"] = relationship(back_populates="events")
