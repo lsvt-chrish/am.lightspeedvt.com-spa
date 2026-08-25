@@ -53,8 +53,14 @@ Use constant-time comparison on your side when verifying responses is not requir
     "category": "knee",
     "claim_path": "new"
   },
+  "service_context": {
+    "branch_of_service": ["Army"],
+    "mos": "11B"
+  },
   "veteran_input": {
     "in_service_cause": "Served in infantry, did heavy lifting and ruck marches during my time in service.",
+    "happened_on_deployment": true,
+    "combat_deployment": true,
     "what_developed": "During my second year of service my right knee started swelling and having sharp pain. It got worse over deployments.",
     "medical_care_during_service": "Went to medical in Okinawa. They gave me ibuprofen and told me to rest.",
     "current_impact": "Can't stand more than 15 minutes without pain. Need a handrail on stairs. Take ibuprofen daily. Had to switch to a desk job."
@@ -71,13 +77,46 @@ Use constant-time comparison on your side when verifying responses is not requir
 | `condition.name` | yes | Free text condition name from the veteran. |
 | `condition.category` | yes | Enum — see list below. |
 | `condition.claim_path` | yes | `new` \| `increase` \| `supplemental` \| `secondary` |
+| `service_context.branch_of_service` | **yes** | Array, min 1. Exact strings from the branch list below. |
+| `service_context.mos` | **yes** | MOS / Rate / AFSC. String, 1–64 chars. |
 | `veteran_input.in_service_cause` | yes | What they did in service that caused the condition. |
+| `veteran_input.happened_on_deployment` | **yes**, except `secondary` | Boolean. **Omit** when `claim_path` is `secondary`. |
+| `veteran_input.combat_deployment` | **yes** if `happened_on_deployment` is `true` | Boolean. Omit when deployment is `false` or claim path is `secondary`. |
 | `veteran_input.what_developed` | yes | What emerged, when, how it progressed. |
 | `veteran_input.medical_care_during_service` | no | Omit or `""` if none. |
 | `veteran_input.current_impact` | yes | How it affects them today. |
 | `regeneration` | no | `null` on first attempt; object on regenerations (see below). |
 
 Grammar/spelling in `veteran_input` do not need to be clean; the generator normalizes.
+
+This is a **breaking change**. Requests without `service_context` or (for non-secondary paths) `happened_on_deployment` return `400` `insufficient_input`.
+
+### What LightSpeed must collect
+
+Ask the veteran (or already have on file):
+
+1. **Branch of service** — one or more values from the list below. Do not send free text.
+2. **MOS / Rate / AFSC** — required.
+3. **In-service cause** — already required.
+4. **Did this condition happen on a deployment?** — yes/no. Skip this question when `claim_path` is `secondary`.
+5. **Was that a combat deployment?** — yes/no, **only if** deployment is yes.
+
+The generator uses branch + MOS as **job context** (it may name the job). It will **not** invent typical duties for that MOS. Do not try to expand MOS into a duty list on your side.
+
+### `service_context.branch_of_service` values
+
+Send these **exact** strings:
+
+`Air Force`, `Army`, `Coast Guard`, `Marine Corps`, `Merchant Marines`, `National Guard`, `Navy`, `Space Force`
+
+Examples: `["Army"]`, `["Navy", "Marine Corps"]`.
+
+### Secondary claims
+
+When `claim_path` is `secondary`:
+
+- Still send `service_context.branch_of_service` and `service_context.mos`.
+- Do **not** send `happened_on_deployment` or `combat_deployment`.
 
 ### `condition.category` values
 
@@ -86,7 +125,7 @@ Grammar/spelling in `veteran_input` do not need to be clean; the generator norma
 ## Regeneration
 
 1. Call the endpoint → show statement to the veteran.
-2. Veteran asks for edits (“add X”, “remove Y”).
+2. Veteran asks for edits ("add X", "remove Y").
 3. Call again with `regeneration` populated.
 4. Up to **5 attempts** per condition (`attempt_number` 1–5). Attempt 1 has `regeneration: null`.
 
@@ -101,7 +140,7 @@ Grammar/spelling in `veteran_input` do not need to be clean; the generator norma
 | Field | Required | Notes |
 |-------|----------|-------|
 | `previous_statement` | yes | Exact statement from the prior response (≤400 chars). |
-| `veteran_feedback` | yes | What to change, in the veteran’s words. |
+| `veteran_feedback` | yes | What to change, in the veteran's words. |
 | `attempt_number` | yes | Integer `2`–`5`. |
 
 `attempt_number > 5` → `400` with `regeneration_limit_exceeded`.
@@ -165,8 +204,14 @@ cat > /tmp/lms-request.json <<'EOF'
     "category": "knee",
     "claim_path": "new"
   },
+  "service_context": {
+    "branch_of_service": ["Army"],
+    "mos": "11B"
+  },
   "veteran_input": {
     "in_service_cause": "Served in infantry, heavy lifting and ruck marches.",
+    "happened_on_deployment": true,
+    "combat_deployment": false,
     "what_developed": "Right knee started swelling and sharp pain in year two. Worsened over deployments.",
     "medical_care_during_service": "Medical in Okinawa, ibuprofen and rest.",
     "current_impact": "Cannot stand more than 15 minutes without pain. Handrail on stairs. Daily ibuprofen. Switched to desk job."
@@ -207,3 +252,7 @@ Veteran input and generated statements are **not stored**. Only anonymous metada
 4. Regeneration attempt 2 with feedback → `200`, `attempt_number: 2`.
 5. `attempt_number: 6` → `400` `regeneration_limit_exceeded`.
 6. Spot-check categories: `ptsd`, `tinnitus`, `back_spine`, and `claim_path: secondary`.
+7. Missing `service_context.mos` or `branch_of_service` → `400` `insufficient_input`.
+8. `claim_path: new` without `happened_on_deployment` → `400` `insufficient_input`.
+9. `happened_on_deployment: true` without `combat_deployment` → `400` `insufficient_input`.
+10. `claim_path: secondary` with `happened_on_deployment` present → `400` `insufficient_input`.

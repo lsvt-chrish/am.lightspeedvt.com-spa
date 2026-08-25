@@ -12,7 +12,11 @@ import CoursewareToolsPage from './views/CoursewareToolsPage.vue'
 import IntegrationToolsPage from './views/IntegrationToolsPage.vue'
 import OpsDashboardPage from './views/OpsDashboardPage.vue'
 import MondayBoardsAdminPage from './views/MondayBoardsAdminPage.vue'
-import VetCommStatementPage from './views/VetCommStatementPage.vue'
+
+// Lazy-loaded so its Bootstrap CSS (used to match the LightSpeedVT iframe
+// host instead of this app's Tailwind styling) ships only in this route's
+// chunk, not the main bundle.
+const VetCommStatementPage = () => import('./views/VetCommStatementPage.vue')
 
 const routes = [
   { path: '/', name: 'Home', component: Home },

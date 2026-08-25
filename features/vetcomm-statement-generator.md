@@ -18,15 +18,17 @@ This page is designed to be **iframed into LightSpeed VT**, not used as a standa
 ### Components (this project: FastAPI + Vue SPA)
 
 1. **Statement Generator UI** (`/vetcomm/statements`, `frontend/src/views/VetCommStatementPage.vue`)
-   - Form for condition name, category, claim path, and the four `veteran_input` fields
-   - Category and claim path options are hardcoded from the spec's fixed enums (20 categories, 4 claim paths) — not fetched from the backend, since these are stable, VetComm-defined lists
+   - Form for condition name/category/claim path, `service_context` (branch of service — multi-select, MOS/Rate/AFSC), the deployment questions, and the `veteran_input` narrative fields
+   - Category, claim path, and branch-of-service options are hardcoded from the spec's fixed enums (20 categories, 4 claim paths, 8 branches) — not fetched from the backend, since these are stable, VetComm-defined lists
+   - "Did this happen on a deployment?" is hidden entirely when `claim_path` is `secondary` (per spec, that field must be omitted for secondary claims); "Was that a combat deployment?" only appears once deployment is answered "Yes"
    - On submit, calls the backend proxy via `fetch('/api/vetcomm/statements', ...)`
    - Displays the returned statement, character count, and attempt number, with a **Copy** button (`navigator.clipboard.writeText`) that flips to "Copied!" for 2 seconds
    - Regenerate control: a feedback textarea that resends the previous statement + feedback + incremented `attempt_number`; disabled after attempt 5
    - Errors are shown as a simple inline banner with VetComm's message text; `insufficient_input` errors additionally list the missing fields
 
 2. **Proxy endpoint** (`POST /vetcomm/statements`, `backend/app/api/vetcomm.py`)
-   - Accepts `condition`, `veteran_input`, and optional `regeneration` (validated via pydantic models mirroring the spec's shapes)
+   - Accepts `condition`, `service_context`, `veteran_input`, and optional `regeneration` (validated via pydantic models mirroring the spec's shapes)
+   - A model validator enforces the conditional deployment-field rules from the spec: `happened_on_deployment` required unless `claim_path` is `secondary` (and must be omitted when it is); `combat_deployment` required when `happened_on_deployment` is `true`, and rejected otherwise — invalid combinations fail pydantic validation (422) before ever reaching VetComm
    - Generates the `request_id` server-side (`lms_<uuid hex>`) — the frontend never needs to construct one
    - Calls `app/vetcomm_api.py` and translates `VetCommError` into an HTTP response
    - No admin auth — this is not an admin action, it's a user-facing tool meant to be embedded
