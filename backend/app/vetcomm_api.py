@@ -36,6 +36,7 @@ def _signature(body_bytes: bytes) -> str:
 async def generate_statement(
     request_id: str,
     condition: dict[str, Any],
+    service_context: dict[str, Any],
     veteran_input: dict[str, Any],
     regeneration: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
@@ -47,6 +48,7 @@ async def generate_statement(
     body = {
         "request_id": request_id,
         "condition": condition,
+        "service_context": service_context,
         "veteran_input": veteran_input,
         "regeneration": regeneration,
     }
