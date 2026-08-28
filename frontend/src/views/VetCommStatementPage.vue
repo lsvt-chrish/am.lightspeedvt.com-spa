@@ -1,5 +1,9 @@
 <template>
   <div id="form" class="container-fluid">
+    <div v-if="loadingInitial" class="loading-overlay">
+      <div class="spinner" role="status" aria-label="Loading"></div>
+    </div>
+
     <h1 class="h3 fw-bold" style="color: var(--primary-color)">VetComm Statement Generator</h1>
     <p class="text-muted small">
       Enter the veteran's condition and claim details to generate a VA-ready personal statement.
@@ -217,6 +221,7 @@
 
 <style scoped>
 #form {
+    position: relative;
     background: #fff;
     border-radius: 10px;
     padding: 1.25rem;
@@ -247,6 +252,35 @@
 
 #form .btn-secondary-brand:disabled {
     opacity: .5;
+}
+
+/* Covers the form/result content while we check for a saved statement to
+   resume, without display:none-ing the underlying elements -- Select2 reads
+   its target element's width when it initializes, which breaks if that
+   element (or an ancestor) is display:none at the time. An overlay hides
+   the flash of the wrong view without touching the layout underneath. */
+#form .loading-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff;
+    border-radius: 10px;
+    z-index: 10;
+}
+
+#form .spinner {
+    width: 2rem;
+    height: 2rem;
+    border: .25rem solid #dee2e6;
+    border-top-color: var(--secondary-color);
+    border-radius: 50%;
+    animation: form-spin .7s linear infinite;
+}
+
+@keyframes form-spin {
+    to { transform: rotate(360deg); }
 }
 </style>
 
@@ -437,6 +471,11 @@ watch(() => form.condition.category, v => categorySelect.value && jQuery(categor
 watch(() => form.condition.claim_path, v => claimPathSelect.value && jQuery(claimPathSelect.value).val(v).trigger('change.select2'))
 watch(() => form.service_context.branch_of_service, v => branchSelect.value && jQuery(branchSelect.value).val(v).trigger('change.select2'))
 
+// True until the resume-on-load check (hydrateSavedStatement) finishes;
+// covered by an overlay (not display:none -- see its CSS) rather than
+// hiding the form/result content, since Select2 needs real layout to
+// initialize against.
+const loadingInitial = ref(true)
 const submitting = ref(false)
 const errorMessage = ref('')
 const missingFields = ref([])
@@ -467,16 +506,17 @@ function readCookie(name) {
 // network error, or "nothing saved" response -- this is a convenience, not
 // something that should ever block the page.
 //
-// Runs after Select2 is bound (see onMounted) rather than gating the form's
-// visibility while it runs: Select2 measures the width of the element it's
-// binding to, and initializing it against a display:none container (e.g.
-// behind a "loading" wrapper) breaks that measurement. Landing straight on
-// the result view still works fine -- v-show (not v-if/v-else) keeps the
-// form's <select> elements mounted and already bound, just hidden, so
-// setting `statement` here simply reveals the already-populated result view.
+// Runs after Select2 is bound (see onMounted). `loadingInitial` covers the
+// form/result content with an overlay (not display:none) while this runs,
+// so there's no flash of the wrong view -- Select2 itself still measures
+// real layout underneath, since the overlay doesn't hide the content, just
+// visually covers it.
 async function hydrateSavedStatement() {
   const userId = readCookie('LSVT_GUSERID')
-  if (!userId) return
+  if (!userId) {
+    loadingInitial.value = false
+    return
+  }
   try {
     const res = await fetch(`/api/vetcomm/statements/${encodeURIComponent(userId)}/latest`, {
       credentials: 'include',
@@ -508,6 +548,8 @@ async function hydrateSavedStatement() {
     attemptNumber.value = data.attempt_number
   } catch (e) {
     // Network error -- fall through to the blank form.
+  } finally {
+    loadingInitial.value = false
   }
 }
 
