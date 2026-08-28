@@ -266,18 +266,38 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import jQuery from 'jquery'
+// `?url` gives us the built asset's final URL instead of importing the
+// module as ESM. select2's dist file is an old-style UMD script that
+// expects to run as a plain <script> tag, patching whatever `window.jQuery`
+// it finds at that moment -- importing it as an ES module (even a dynamic
+// one) lets the bundler resolve/duplicate its internal `require('jquery')`
+// into a *different* module instance than the one we import and call
+// `.select2()` on below, so the plugin silently attaches to the wrong
+// object ("select2 is not a function" even though the chunk loaded fine).
+// A real <script> tag, injected after window.jQuery is set (see
+// loadSelect2Script in onMounted), sidesteps all of that: it's the exact
+// mechanism the host page itself uses for its own plugins.
+import select2ScriptUrl from 'select2/dist/js/select2.full.min.js?url'
 
-// select2 attaches itself to whatever `window.jQuery` is *at the moment its
-// module runs* -- and the host page (this is embedded into LightSpeedVT)
-// already loads its own jQuery before this component ever mounts. A static
-// `import 'select2'` here would execute (imports are hoisted, so it runs
-// before the assignment below even though it's written after it) while
-// window.jQuery still points at the HOST's jQuery, attaching select2 to
-// that instance instead of ours -- then every `jQuery(el).select2(...)`
-// call below throws "select2 is not a function" since our own imported
-// jQuery never got the plugin. Loading select2 dynamically inside
-// onMounted, after this assignment has actually run, fixes the ordering.
+// The host page (this is embedded into LightSpeedVT) already loads its own
+// jQuery before this component ever mounts, so this assignment matters:
+// select2 patches whatever window.jQuery is at the moment its script runs.
 window.jQuery = window.$ = jQuery
+
+let select2ScriptPromise = null
+function loadSelect2Script() {
+  if (jQuery.fn.select2) return Promise.resolve()
+  if (!select2ScriptPromise) {
+    select2ScriptPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script')
+      script.src = select2ScriptUrl
+      script.onload = resolve
+      script.onerror = reject
+      document.head.appendChild(script)
+    })
+  }
+  return select2ScriptPromise
+}
 
 // LightSpeedVT host styles/scripts so this iframed page visually matches the
 // parent app instead of this app's own Tailwind styling. Order matters for
@@ -329,10 +349,7 @@ onMounted(async () => {
     return link
   })
 
-  // Dynamic import so this runs (and select2 attaches to $.fn) only after
-  // window.jQuery was set above to our bundled instance -- see the comment
-  // by that assignment for why a static import breaks this.
-  await import('select2')
+  await loadSelect2Script()
 
   // Both the form and result views are always mounted now (v-show, not
   // v-if/v-else -- see hydrateSavedStatement()'s comment below for why), so
