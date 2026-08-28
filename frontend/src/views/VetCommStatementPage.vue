@@ -7,6 +7,7 @@
     <h1 class="h3 fw-bold" style="color: var(--primary-color)">VetComm Statement Generator</h1>
     <p class="text-muted small">
       Enter the veteran's condition and claim details to generate a VA-ready personal statement.
+      Fields marked <span class="text-danger">*</span> are required.
     </p>
 
     <div
@@ -22,33 +23,33 @@
     </div>
 
     <form v-show="!statement" @submit.prevent="submit">
-      <div :class="groupClass('name')">
+      <div data-field="name" :class="groupClass('name')">
         <input
           v-model="form.condition.name"
           type="text"
           class="form__control"
           placeholder=" "
         />
-        <label class="form__label">Condition name</label>
+        <label class="form__label">Condition name <span class="text-danger">*</span></label>
       </div>
 
-      <div :class="groupClass('category')">
+      <div data-field="category" :class="groupClass('category')">
         <select ref="categorySelect" v-model="form.condition.category" class="form__control">
           <option value="" disabled>Select a category</option>
           <option v-for="c in categories" :key="c" :value="c">{{ formatLabel(c) }}</option>
         </select>
-        <label class="form__label">Category</label>
+        <label class="form__label">Category <span class="text-danger">*</span></label>
       </div>
 
-      <div :class="groupClass('claim_path')">
+      <div data-field="claim_path" :class="groupClass('claim_path')">
         <select ref="claimPathSelect" v-model="form.condition.claim_path" class="form__control">
           <option value="" disabled>Select a claim path</option>
           <option v-for="p in claimPaths" :key="p" :value="p">{{ formatLabel(p) }}</option>
         </select>
-        <label class="form__label">Claim path</label>
+        <label class="form__label">Claim path <span class="text-danger">*</span></label>
       </div>
 
-      <div :class="groupClass('branch_of_service')">
+      <div data-field="branch_of_service" :class="groupClass('branch_of_service')">
         <select
           ref="branchSelect"
           v-model="form.service_context.branch_of_service"
@@ -57,33 +58,38 @@
         >
           <option v-for="b in branches" :key="b" :value="b">{{ b }}</option>
         </select>
-        <label class="form__label">Branch of service</label>
+        <label class="form__label">Branch of service <span class="text-danger">*</span></label>
         <p class="form__message text-muted small">
           Hold Ctrl (Windows) or Cmd (Mac) and click each branch you want. Ctrl/Cmd-click a selected branch again to remove it.
         </p>
       </div>
 
-      <div :class="groupClass('mos')">
+      <div data-field="mos" :class="groupClass('mos')">
         <input
           v-model="form.service_context.mos"
           type="text"
           class="form__control"
           placeholder=" "
         />
-        <label class="form__label">MOS / Rate / AFSC</label>
+        <label class="form__label">MOS / Rate / AFSC <span class="text-danger">*</span></label>
       </div>
 
-      <div v-if="form.condition.claim_path !== 'secondary'" :class="groupClass('happened_on_deployment')">
+      <div
+        v-if="form.condition.claim_path !== 'secondary'"
+        data-field="happened_on_deployment"
+        :class="groupClass('happened_on_deployment')"
+      >
         <select v-model="happenedOnDeployment" class="form__control">
           <option value="" disabled>Select an answer</option>
           <option value="yes">Yes</option>
           <option value="no">No</option>
         </select>
-        <label class="form__label">Did this happen on a deployment?</label>
+        <label class="form__label">Did this happen on a deployment? <span class="text-danger">*</span></label>
       </div>
 
       <div
         v-if="form.condition.claim_path !== 'secondary' && happenedOnDeployment === 'yes'"
+        data-field="combat_deployment"
         :class="groupClass('combat_deployment')"
       >
         <select v-model="combatDeployment" class="form__control">
@@ -91,36 +97,36 @@
           <option value="yes">Yes</option>
           <option value="no">No</option>
         </select>
-        <label class="form__label">Was that a combat deployment?</label>
+        <label class="form__label">Was that a combat deployment? <span class="text-danger">*</span></label>
       </div>
 
-      <div :class="groupClass('in_service_cause')">
+      <div data-field="in_service_cause" :class="groupClass('in_service_cause')">
         <textarea
           v-model="form.veteran_input.in_service_cause"
           rows="3"
           class="form__control"
           placeholder=" "
         ></textarea>
-        <label class="form__label">In-service cause</label>
+        <label class="form__label">In-service cause <span class="text-danger">*</span></label>
         <p class="form__message text-muted small">
           What was the veteran doing during service that caused this?
         </p>
       </div>
 
-      <div :class="groupClass('what_developed')">
+      <div data-field="what_developed" :class="groupClass('what_developed')">
         <textarea
           v-model="form.veteran_input.what_developed"
           rows="3"
           class="form__control"
           placeholder=" "
         ></textarea>
-        <label class="form__label">What developed</label>
+        <label class="form__label">What developed <span class="text-danger">*</span></label>
         <p class="form__message text-muted small">
           What symptom or condition emerged, when, and how it progressed.
         </p>
       </div>
 
-      <div :class="groupClass('medical_care_during_service')">
+      <div data-field="medical_care_during_service" :class="groupClass('medical_care_during_service')">
         <textarea
           v-model="form.veteran_input.medical_care_during_service"
           rows="2"
@@ -133,25 +139,26 @@
         </p>
       </div>
 
-      <div :class="groupClass('current_impact')">
+      <div data-field="current_impact" :class="groupClass('current_impact')">
         <textarea
           v-model="form.veteran_input.current_impact"
           rows="3"
           class="form__control"
           placeholder=" "
         ></textarea>
-        <label class="form__label">Current impact</label>
+        <label class="form__label">Current impact <span class="text-danger">*</span></label>
         <p class="form__message text-muted small">How the condition affects them today.</p>
       </div>
 
       <button
         type="submit"
-        :disabled="submitting || !canSubmit"
+        :disabled="submitting"
         class="btn btn-secondary-brand fw-medium"
       >
         {{ submitting ? 'Generating...' : 'Generate statement' }}
       </button>
       <button
+        v-if="wasAutofilled"
         type="button"
         :disabled="submitting"
         class="btn btn-outline-secondary fw-medium ms-2"
@@ -493,6 +500,11 @@ const saveError = ref('')
 // (inputs + output), not just the generated text.
 const lastRequest = ref(null)
 
+// True once the form has been autofilled from a previously saved statement
+// (see hydrateSavedStatement). Gates the "Clear form" button -- there's
+// nothing meaningful to "clear" on a form the veteran is filling out fresh.
+const wasAutofilled = ref(false)
+
 // Reads a cookie set by the LightSpeedVT host page (this component is
 // iframed into it, so it shares the same cookie jar/domain).
 function readCookie(name) {
@@ -542,6 +554,7 @@ async function hydrateSavedStatement() {
     combatDeployment.value = req.veteran_input?.combat_deployment === true ? 'yes'
       : req.veteran_input?.combat_deployment === false ? 'no' : ''
     lastRequest.value = req
+    wasAutofilled.value = true
 
     statement.value = data.statement
     characterCount.value = data.character_count
@@ -571,20 +584,44 @@ function groupClass(key) {
   return classes
 }
 
-const canSubmit = computed(() =>
-  form.condition.name.trim() &&
-  form.condition.category &&
-  form.condition.claim_path &&
-  form.service_context.branch_of_service.length > 0 &&
-  form.service_context.mos.trim() &&
-  form.veteran_input.in_service_cause.trim() &&
-  form.veteran_input.what_developed.trim() &&
-  form.veteran_input.current_impact.trim() &&
-  (form.condition.claim_path === 'secondary' || (
-    happenedOnDeployment.value &&
-    (happenedOnDeployment.value === 'no' || combatDeployment.value)
-  ))
-)
+// Same order the fields appear in the form -- used both to build the
+// missing-fields list and to find the *first* one to scroll to.
+const FORM_FIELD_ORDER = [
+  'name', 'category', 'claim_path', 'branch_of_service', 'mos',
+  'happened_on_deployment', 'combat_deployment',
+  'in_service_cause', 'what_developed', 'current_impact',
+]
+
+function getMissingFields() {
+  const missing = []
+  if (!form.condition.name.trim()) missing.push('name')
+  if (!form.condition.category) missing.push('category')
+  if (!form.condition.claim_path) missing.push('claim_path')
+  if (form.service_context.branch_of_service.length === 0) missing.push('branch_of_service')
+  if (!form.service_context.mos.trim()) missing.push('mos')
+  if (form.condition.claim_path !== 'secondary') {
+    if (!happenedOnDeployment.value) missing.push('happened_on_deployment')
+    else if (happenedOnDeployment.value === 'yes' && !combatDeployment.value) missing.push('combat_deployment')
+  }
+  if (!form.veteran_input.in_service_cause.trim()) missing.push('in_service_cause')
+  if (!form.veteran_input.what_developed.trim()) missing.push('what_developed')
+  if (!form.veteran_input.current_impact.trim()) missing.push('current_impact')
+  return missing
+}
+
+// Scrolls to the first invalid field (by form order, not necessarily the
+// order the API/local validation reported them in), falling back to the
+// error banner if none of the reported fields match a known one on screen.
+async function scrollToFirstInvalidField() {
+  await nextTick()
+  const firstKey = FORM_FIELD_ORDER.find(isFieldMissing)
+  const el = firstKey && document.querySelector(`#form [data-field="${firstKey}"]`)
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  } else {
+    errorBanner.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
 
 async function callApi(body) {
   errorMessage.value = ''
@@ -602,8 +639,7 @@ async function callApi(body) {
       const detail = data.detail || {}
       errorMessage.value = detail.message || 'Failed to generate statement.'
       missingFields.value = detail.required_fields_missing || []
-      await nextTick()
-      errorBanner.value?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      await scrollToFirstInvalidField()
       return
     }
     statement.value = data.statement
@@ -638,6 +674,13 @@ function buildVeteranInput() {
 }
 
 function submit() {
+  const missing = getMissingFields()
+  if (missing.length) {
+    errorMessage.value = 'Please complete all required fields.'
+    missingFields.value = missing
+    scrollToFirstInvalidField()
+    return
+  }
   callApi({
     condition: { ...form.condition },
     service_context: {
@@ -699,6 +742,7 @@ function clearForm() {
   errorMessage.value = ''
   missingFields.value = []
   lastRequest.value = null
+  wasAutofilled.value = false
 }
 
 function copyWithExecCommand() {
