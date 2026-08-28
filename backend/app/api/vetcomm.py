@@ -173,14 +173,19 @@ async def get_latest_statement(user_id: str):
             detail={"code": e.code, "message": e.message, **e.details},
         )
 
-    request = (result.get("payload") or {}).get("request")
+    # ?latest=true responds with the same {user_id, total, data} envelope as
+    # the list endpoint -- data is just a single record object here instead
+    # of an array. The record's own `payload` (what we submitted beyond the
+    # API's first-class fields) is where our original `request` lives.
+    record = result.get("data") or {}
+    request = (record.get("payload") or {}).get("request")
     if not request:
         return {"found": False}
 
     return {
         "found": True,
-        "statement": result.get("statement"),
-        "character_count": result.get("character_count"),
-        "attempt_number": result.get("attempt_number"),
+        "statement": record.get("statement"),
+        "character_count": record.get("character_count"),
+        "attempt_number": record.get("attempt_number"),
         "request": request,
     }
