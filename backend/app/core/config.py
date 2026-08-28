@@ -8,6 +8,11 @@ load_dotenv()
 VETCOMM_STAGE_URL = "https://stage-portal.vetcomm.link"
 VETCOMM_PROD_URL = "https://portal.vetcomm.org"
 
+# VetComm statements ingest/read API (separate service from the generation
+# API above -- stores saved statements). See vetcomm-statements-api docs.
+VETCOMM_STATEMENTS_STAGE_URL = "https://vetcomm-statements-api-staging.lsvt.workers.dev"
+VETCOMM_STATEMENTS_PROD_URL = "https://vetcomm-statements-api-production.lsvt.workers.dev"
+
 
 class Config(BaseSettings):
     """Application configuration loaded from environment variables."""
@@ -68,6 +73,13 @@ class Config(BaseSettings):
     vetcomm_shared_secret: str = ""
     vetcomm_api_timeout: int = 30
 
+    # VetComm statements ingest/read API (stores "saved for later" statements).
+    # Same base_url derivation pattern as vetcomm_api_base_url above.
+    vetcomm_statements_api_base_url: str | None = None
+    vetcomm_ingest_token: str = ""
+    vetcomm_read_token: str = ""
+    vetcomm_statements_api_timeout: int = 30
+
     @field_validator("redirect_allowlist", mode="before")
     @classmethod
     def parse_redirect_allowlist(cls, v: str) -> list[str]:
@@ -82,6 +94,14 @@ class Config(BaseSettings):
         if not self.vetcomm_api_base_url:
             self.vetcomm_api_base_url = (
                 VETCOMM_PROD_URL if self.app_env == "production" else VETCOMM_STAGE_URL
+            )
+        return self
+
+    @model_validator(mode="after")
+    def default_vetcomm_statements_base_url(self):
+        if not self.vetcomm_statements_api_base_url:
+            self.vetcomm_statements_api_base_url = (
+                VETCOMM_STATEMENTS_PROD_URL if self.app_env == "production" else VETCOMM_STATEMENTS_STAGE_URL
             )
         return self
 
@@ -122,3 +142,7 @@ VETCOMM_API_BASE_URL = settings.vetcomm_api_base_url
 VETCOMM_API_KEY = settings.vetcomm_api_key
 VETCOMM_SHARED_SECRET = settings.vetcomm_shared_secret
 VETCOMM_API_TIMEOUT = settings.vetcomm_api_timeout
+VETCOMM_STATEMENTS_API_BASE_URL = settings.vetcomm_statements_api_base_url
+VETCOMM_INGEST_TOKEN = settings.vetcomm_ingest_token
+VETCOMM_READ_TOKEN = settings.vetcomm_read_token
+VETCOMM_STATEMENTS_API_TIMEOUT = settings.vetcomm_statements_api_timeout

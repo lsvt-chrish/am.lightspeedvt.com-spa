@@ -17,7 +17,7 @@
       </ul>
     </div>
 
-    <form v-if="!statement" @submit.prevent="submit">
+    <form v-show="!statement" @submit.prevent="submit">
       <div :class="groupClass('name')">
         <input
           v-model="form.condition.name"
@@ -147,9 +147,17 @@
       >
         {{ submitting ? 'Generating...' : 'Generate statement' }}
       </button>
+      <button
+        type="button"
+        :disabled="submitting"
+        class="btn btn-outline-secondary fw-medium ms-2"
+        @click="clearForm"
+      >
+        Clear form
+      </button>
     </form>
 
-    <div v-else>
+    <div v-show="statement">
       <div class="form__group form__group--active form__group--hidden-label">
         <textarea
           :value="statement"
@@ -313,6 +321,10 @@ onMounted(() => {
     return link
   })
 
+  // Both the form and result views are always mounted now (v-show, not
+  // v-if/v-else -- see hydrateSavedStatement()'s comment below for why), so
+  // it's safe to bind Select2 here exactly once regardless of which view
+  // ends up visible.
   select2Instances = [
     initSelect2(categorySelect.value, computed({
       get: () => form.condition.category,
@@ -329,6 +341,8 @@ onMounted(() => {
       set: v => { form.service_context.branch_of_service = v || [] },
     })),
   ]
+
+  hydrateSavedStatement()
 })
 
 onUnmounted(() => {
@@ -405,12 +419,66 @@ const errorBanner = ref(null)
 const saving = ref(false)
 const saved = ref(false)
 const saveError = ref('')
+// The exact request body sent to /api/vetcomm/statements for the current
+// `statement`, kept so Save-for-later can submit the full interaction
+// (inputs + output), not just the generated text.
+const lastRequest = ref(null)
 
 // Reads a cookie set by the LightSpeedVT host page (this component is
 // iframed into it, so it shares the same cookie jar/domain).
 function readCookie(name) {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
   return match ? decodeURIComponent(match[1]) : null
+}
+
+// On load, checks whether this veteran already has a saved statement and,
+// if so, resumes straight into the result view with it instead of showing
+// the blank form. Fails open to the blank form on any missing cookie,
+// network error, or "nothing saved" response -- this is a convenience, not
+// something that should ever block the page.
+//
+// Runs after Select2 is bound (see onMounted) rather than gating the form's
+// visibility while it runs: Select2 measures the width of the element it's
+// binding to, and initializing it against a display:none container (e.g.
+// behind a "loading" wrapper) breaks that measurement. Landing straight on
+// the result view still works fine -- v-show (not v-if/v-else) keeps the
+// form's <select> elements mounted and already bound, just hidden, so
+// setting `statement` here simply reveals the already-populated result view.
+async function hydrateSavedStatement() {
+  const userId = readCookie('LSVT_GUSERID')
+  if (!userId) return
+  try {
+    const res = await fetch(`/api/vetcomm/statements/${encodeURIComponent(userId)}/latest`, {
+      credentials: 'include',
+    })
+    if (!res.ok) return
+    const data = await res.json()
+    if (!data.found) return
+
+    const req = data.request
+    form.condition = { ...req.condition }
+    form.service_context = {
+      branch_of_service: [...(req.service_context?.branch_of_service || [])],
+      mos: req.service_context?.mos || '',
+    }
+    form.veteran_input = {
+      in_service_cause: req.veteran_input?.in_service_cause || '',
+      what_developed: req.veteran_input?.what_developed || '',
+      medical_care_during_service: req.veteran_input?.medical_care_during_service || '',
+      current_impact: req.veteran_input?.current_impact || '',
+    }
+    happenedOnDeployment.value = req.veteran_input?.happened_on_deployment === true ? 'yes'
+      : req.veteran_input?.happened_on_deployment === false ? 'no' : ''
+    combatDeployment.value = req.veteran_input?.combat_deployment === true ? 'yes'
+      : req.veteran_input?.combat_deployment === false ? 'no' : ''
+    lastRequest.value = req
+
+    statement.value = data.statement
+    characterCount.value = data.character_count
+    attemptNumber.value = data.attempt_number
+  } catch (e) {
+    // Network error -- fall through to the blank form.
+  }
 }
 
 function formatLabel(str) {
@@ -469,6 +537,7 @@ async function callApi(body) {
     statement.value = data.statement
     characterCount.value = data.character_count
     attemptNumber.value = data.attempt_number
+    lastRequest.value = body
     feedback.value = ''
     copied.value = false
     saved.value = false
@@ -539,6 +608,27 @@ function startOver() {
 // (form fields themselves are intentionally left populated on startOver so
 // a veteran can regenerate for a related condition without retyping everything)
 
+// Explicit wipe of the form's answers -- unlike startOver(), which
+// deliberately preserves them. Reassigning form.condition/service_context/
+// veteran_input wholesale is enough to also reset the Select2 widgets: the
+// existing watchers on those fields re-sync Select2's displayed value
+// whenever they change.
+function clearForm() {
+  form.condition = { name: '', category: '', claim_path: '' }
+  form.service_context = { branch_of_service: [], mos: '' }
+  form.veteran_input = {
+    in_service_cause: '',
+    what_developed: '',
+    medical_care_during_service: '',
+    current_impact: '',
+  }
+  happenedOnDeployment.value = ''
+  combatDeployment.value = ''
+  errorMessage.value = ''
+  missingFields.value = []
+  lastRequest.value = null
+}
+
 function copyWithExecCommand() {
   const textarea = document.createElement('textarea')
   textarea.value = statement.value
@@ -573,8 +663,13 @@ async function saveStatement() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         user_id: userId,
-        statement: statement.value,
         generated_at: new Date().toISOString(),
+        // Full request/response pair so the whole interaction is stored,
+        // not just the final statement text.
+        request: lastRequest.value,
+        statement: statement.value,
+        character_count: characterCount.value,
+        attempt_number: attemptNumber.value,
       }),
     })
     if (!res.ok) throw new Error('save failed')
