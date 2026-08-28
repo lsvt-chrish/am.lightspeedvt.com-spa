@@ -266,9 +266,17 @@
 <script setup>
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import jQuery from 'jquery'
-import 'select2'
 
-// select2 attaches itself to the global jQuery instance.
+// select2 attaches itself to whatever `window.jQuery` is *at the moment its
+// module runs* -- and the host page (this is embedded into LightSpeedVT)
+// already loads its own jQuery before this component ever mounts. A static
+// `import 'select2'` here would execute (imports are hoisted, so it runs
+// before the assignment below even though it's written after it) while
+// window.jQuery still points at the HOST's jQuery, attaching select2 to
+// that instance instead of ours -- then every `jQuery(el).select2(...)`
+// call below throws "select2 is not a function" since our own imported
+// jQuery never got the plugin. Loading select2 dynamically inside
+// onMounted, after this assignment has actually run, fixes the ordering.
 window.jQuery = window.$ = jQuery
 
 // LightSpeedVT host styles/scripts so this iframed page visually matches the
@@ -308,7 +316,7 @@ function initSelect2(el, modelRef) {
 
 let select2Instances = []
 
-onMounted(() => {
+onMounted(async () => {
   hadDarkClass = document.documentElement.classList.contains('dark')
   document.documentElement.classList.remove('dark')
   document.body.classList.remove('dark')
@@ -320,6 +328,11 @@ onMounted(() => {
     document.head.appendChild(link)
     return link
   })
+
+  // Dynamic import so this runs (and select2 attaches to $.fn) only after
+  // window.jQuery was set above to our bundled instance -- see the comment
+  // by that assignment for why a static import breaks this.
+  await import('select2')
 
   // Both the form and result views are always mounted now (v-show, not
   // v-if/v-else -- see hydrateSavedStatement()'s comment below for why), so
