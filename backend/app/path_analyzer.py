@@ -122,13 +122,22 @@ def _is_terminal(seg: dict[str, Any], next_ids: list[str]) -> bool:
 
 
 def _build_graph(videos: dict[str, Any]) -> dict[str, list[str]]:
-    """Map segment id -> list of unique next segment ids (one edge per destination, not per button)."""
+    """
+    Map segment id -> list of unique next segment ids.
+
+    A segment either branches via its buttons (each button's action.nextSegment
+    is an edge), or -- when it has no buttons -- auto-advances via
+    onEnd.nextSegment once playback ends. Segments with buttons also carry an
+    onEnd (typically onEnd.loop, to replay while waiting on a choice), but that
+    onEnd is not a real edge in that case -- the buttons are what decide where
+    the viewer actually goes next.
+    """
     graph: dict[str, list[str]] = {}
     valid_ids = set(videos)
     for seg_id, seg in videos.items():
         next_ids_set: set[str] = set()
         buttons = seg.get("buttons")
-        if isinstance(buttons, list):
+        if isinstance(buttons, list) and buttons:
             for b in buttons:
                 if not isinstance(b, dict):
                     continue
@@ -137,6 +146,12 @@ def _build_graph(videos: dict[str, Any]) -> dict[str, list[str]]:
                     nxt = action.get("nextSegment")
                     if nxt in valid_ids:
                         next_ids_set.add(nxt)
+        else:
+            on_end = seg.get("onEnd")
+            if isinstance(on_end, dict):
+                nxt = on_end.get("nextSegment")
+                if nxt in valid_ids:
+                    next_ids_set.add(nxt)
         graph[seg_id] = list(next_ids_set)
     return graph
 
