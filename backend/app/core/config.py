@@ -64,6 +64,20 @@ class Config(BaseSettings):
     ops_admin_username: str = "admin"
     ops_admin_password: str = ""
 
+    # Monday.com outbound GraphQL API (production dashboard data pull).
+    # Separate from the webhook ingestion above -- this is a personal/API
+    # token used to *query* Monday.com rather than receive pushes from it.
+    # See docs/monday-api-integration-plan.md.
+    monday_api_token: str = ""
+    monday_api_url: str = "https://api.monday.com/v2"
+    monday_production_board_id: str = "18405675239"
+    monday_production_refresh_interval_seconds: int = 900
+    # "Dynamic Goal" capacity, in hours -- currently tied to renderer headcount
+    # (4 renderers = 20 hours) per docs/monday-api-integration-plan.md. Kept as
+    # a plain configured value (not calculated from headcount) until that's
+    # confirmed with the business team.
+    monday_production_capacity_goal_hours: float = 20.0
+
     # VetComm statement generation API (client-supplied key/secret).
     # base_url is the host only (no /api/v1 suffix) -- see docs/lms-statement-api.md
     # Left unset by default so it derives from app_env (stage in dev, prod in prod);
@@ -136,6 +150,11 @@ CERTIFICATIONS_USER_CACHE_TTL = settings.certifications_user_cache_ttl
 LIGHTSPEED_API_TIMEOUT = settings.lightspeed_api_timeout
 MONDAY_WEBHOOK_TOKEN = settings.monday_webhook_token
 MONDAY_ACCOUNT_SUBDOMAIN = settings.monday_account_subdomain
+MONDAY_API_TOKEN = settings.monday_api_token
+MONDAY_API_URL = settings.monday_api_url
+MONDAY_PRODUCTION_BOARD_ID = settings.monday_production_board_id
+MONDAY_PRODUCTION_REFRESH_INTERVAL_SECONDS = settings.monday_production_refresh_interval_seconds
+MONDAY_PRODUCTION_CAPACITY_GOAL_HOURS = settings.monday_production_capacity_goal_hours
 OPS_ADMIN_USERNAME = settings.ops_admin_username
 OPS_ADMIN_PASSWORD = settings.ops_admin_password
 VETCOMM_API_BASE_URL = settings.vetcomm_api_base_url

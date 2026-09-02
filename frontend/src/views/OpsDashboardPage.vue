@@ -8,170 +8,178 @@
     </div>
 
     <div class="osd-body">
-      <p class="osd-sub">
-        Open / new / pending / closed trend per department, sourced from Monday.com status-change
-        webhooks. History only accumulates from the point each board's webhook was connected forward.
-        <router-link to="/ops-dashboard/boards" class="osd-config-link">Configure board mappings &rarr;</router-link>
-      </p>
+      <section class="osd-section">
+        <p class="osd-section-title">AI Production</p>
+        <p class="osd-notice">
+          Up Next / Pipeline / In Progress / Hours Open, pulled directly from the AI Production
+          board in Monday.com &mdash; refreshes automatically every 15 minutes, or on demand via
+          the Refresh button.
+        </p>
+        <ProductionMetricsBar />
+      </section>
 
-      <p class="osd-section-title">Live metrics</p>
-      <p class="osd-notice">
-        Real-time counts across all departments &mdash; refreshes automatically every 15 seconds, no
-        page reload needed. Scoped by the board/group/status filters below, if set.
-      </p>
-      <LiveMetricsBar :board-id="selectedBoard" :group="selectedGroup" :status="selectedStatus" />
+      <section class="osd-section">
+        <p class="osd-section-title">Live metrics</p>
+        <p class="osd-notice">
+          Real-time counts across all departments &mdash; refreshes automatically every 15 seconds, no
+          page reload needed. Scoped by the board/group/status filters below, if set.
+        </p>
+        <LiveMetricsBar :board-id="selectedBoard" :group="selectedGroup" :status="selectedStatus" />
+      </section>
 
-      <p class="osd-section-title">Trend analysis</p>
-      <p class="osd-sub">
-        Open / new / pending / closed trend per department, sourced from Monday.com status-change
-        webhooks. History only accumulates from the point each board's webhook was connected forward.
-        <router-link to="/ops-dashboard/boards" class="osd-config-link">Configure board mappings &rarr;</router-link>
-      </p>
+      <section class="osd-section">
+        <p class="osd-section-title">Trend analysis</p>
+        <p class="osd-sub">
+          Open / new / pending / closed trend per department, sourced from Monday.com status-change
+          webhooks. History only accumulates from the point each board's webhook was connected forward.
+          <router-link to="/ops-dashboard/boards" class="osd-config-link">Configure board mappings &rarr;</router-link>
+        </p>
 
-      <div class="osd-form">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-          <p class="osd-section-title" style="margin:0;">Filters</p>
-          <label
-            class="osd-compare-toggle"
-            title="Overlay the immediately preceding period of equal length (e.g. selecting the last 7 days compares against the 7 days before that) as a dashed line on each chart."
-          >
-            <input type="checkbox" v-model="compareEnabled" @change="loadAll" />
-            Compare to previous period
-          </label>
+        <div class="osd-form">
+          <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <p class="osd-section-title" style="margin:0;">Filters</p>
+            <label
+              class="osd-compare-toggle"
+              title="Overlay the immediately preceding period of equal length (e.g. selecting the last 7 days compares against the 7 days before that) as a dashed line on each chart."
+            >
+              <input type="checkbox" v-model="compareEnabled" @change="loadAll" />
+              Compare to previous period
+            </label>
+          </div>
+
+          <div class="osd-form-grid">
+            <div class="osd-field" title="Restrict the charts to one specific Monday.com board, instead of aggregating every board mapped to a department.">
+              <label>Board</label>
+              <select v-model="selectedBoard" @change="onBoardChange">
+                <option value="">All boards</option>
+                <option v-for="b in boards" :key="b.board_id" :value="b.board_id">{{ b.name }}</option>
+              </select>
+            </div>
+            <div class="osd-field" title="Narrow to items currently sitting in one specific Monday.com group on the selected board (e.g. 'Awaiting Response'), regardless of which bucket it maps to. Pick a board first.">
+              <label>Group</label>
+              <select v-model="selectedGroup" :disabled="!selectedBoard" @change="loadAll">
+                <option value="">All groups</option>
+                <option v-for="g in boardValues.groups" :key="g" :value="g">{{ g }}</option>
+              </select>
+            </div>
+            <div class="osd-field" title="Narrow to items whose most recent status change on the selected board was to this exact status label. Pick a board first.">
+              <label>Status</label>
+              <select v-model="selectedStatus" :disabled="!selectedBoard" @change="loadAll">
+                <option value="">All statuses</option>
+                <option v-for="s in boardValues.statuses" :key="s" :value="s">{{ s }}</option>
+              </select>
+            </div>
+            <div class="osd-field" title="Start of the date range to chart. Works together with the weekly/monthly toggle above, which sets how finely that range is broken into data points.">
+              <label>From</label>
+              <input v-model="startDate" type="date" @change="loadAll" />
+            </div>
+            <div class="osd-field" title="End of the date range to chart.">
+              <label>To</label>
+              <input v-model="endDate" type="date" @change="loadAll" />
+            </div>
+          </div>
         </div>
 
-        <div class="osd-form-grid">
-          <div class="osd-field" title="Restrict the charts to one specific Monday.com board, instead of aggregating every board mapped to a department.">
-            <label>Board</label>
-            <select v-model="selectedBoard" @change="onBoardChange">
-              <option value="">All boards</option>
-              <option v-for="b in boards" :key="b.board_id" :value="b.board_id">{{ b.name }}</option>
-            </select>
-          </div>
-          <div class="osd-field" title="Narrow to items currently sitting in one specific Monday.com group on the selected board (e.g. 'Awaiting Response'), regardless of which bucket it maps to. Pick a board first.">
-            <label>Group</label>
-            <select v-model="selectedGroup" :disabled="!selectedBoard" @change="loadAll">
-              <option value="">All groups</option>
-              <option v-for="g in boardValues.groups" :key="g" :value="g">{{ g }}</option>
-            </select>
-          </div>
-          <div class="osd-field" title="Narrow to items whose most recent status change on the selected board was to this exact status label. Pick a board first.">
-            <label>Status</label>
-            <select v-model="selectedStatus" :disabled="!selectedBoard" @change="loadAll">
-              <option value="">All statuses</option>
-              <option v-for="s in boardValues.statuses" :key="s" :value="s">{{ s }}</option>
-            </select>
-          </div>
-          <div class="osd-field" title="Start of the date range to chart. Works together with the weekly/monthly toggle above, which sets how finely that range is broken into data points.">
-            <label>From</label>
-            <input v-model="startDate" type="date" @change="loadAll" />
-          </div>
-          <div class="osd-field" title="End of the date range to chart.">
-            <label>To</label>
-            <input v-model="endDate" type="date" @change="loadAll" />
-          </div>
-        </div>
-      </div>
+        <p v-if="loading" class="osd-sub">Loading&hellip;</p>
+        <p v-else-if="error" class="osd-sub" style="color:var(--red-dark);">{{ error }}</p>
+        <p v-else-if="departments.length === 0" class="osd-empty">
+          No department data yet for this filter &mdash; connect a board's webhook automation, or widen the date range/filters.
+        </p>
 
-      <p v-if="loading" class="osd-sub">Loading&hellip;</p>
-      <p v-else-if="error" class="osd-sub" style="color:var(--red-dark);">{{ error }}</p>
-      <p v-else-if="departments.length === 0" class="osd-empty">
-        No department data yet for this filter &mdash; connect a board's webhook automation, or widen the date range/filters.
-      </p>
+        <template v-else>
+          <div class="osd-chip-row">
+            <span
+              v-for="dept in departments"
+              :key="dept"
+              class="osd-chip"
+              :title="`Open: ${latestOf(dept, 'open')} &middot; Pending: ${latestOf(dept, 'pending')}`"
+            >
+              <span class="osd-chip-dot" :class="statusFor(dept)"></span>
+              {{ dept }}
+              <span class="osd-chip-note">{{ latestOf(dept, 'open') }} open &middot; {{ latestOf(dept, 'pending') }} pending</span>
+            </span>
+          </div>
 
-      <template v-else>
-        <div class="osd-chip-row">
-          <span
+          <div class="osd-weekbar">
+            <span class="lbl">Viewing</span>
+            <button class="osd-weeknav" type="button" title="Shift range back" @click="shiftRange(-1)">&larr;</button>
+            <span style="font-family:var(--font-heading); font-size:13.5px; font-weight:700; color:var(--dark-blue); padding:2px 4px;">
+              {{ startDate }} &rarr; {{ endDate }}
+            </span>
+            <button class="osd-weeknav" type="button" title="Shift range forward" @click="shiftRange(1)">&rarr;</button>
+          </div>
+
+          <div class="osd-dept-panels">
+          <div
             v-for="dept in departments"
             :key="dept"
-            class="osd-chip"
-            :title="`Open: ${latestOf(dept, 'open')} &middot; Pending: ${latestOf(dept, 'pending')}`"
+            class="osd-detail-panel"
           >
-            <span class="osd-chip-dot" :class="statusFor(dept)"></span>
-            {{ dept }}
-            <span class="osd-chip-note">{{ latestOf(dept, 'open') }} open &middot; {{ latestOf(dept, 'pending') }} pending</span>
-          </span>
-        </div>
+            <div class="osd-dept-head">
+              <p class="osd-detail-title" style="margin:0;">{{ dept }}</p>
+              <div class="flex gap-2">
+                <span class="osd-badge" :class="statusFor(dept)">Open {{ latestOf(dept, 'open') }}</span>
+                <span class="osd-badge" :class="statusFor(dept)">Pending {{ latestOf(dept, 'pending') }}</span>
+              </div>
+            </div>
 
-        <div class="osd-weekbar">
-          <span class="lbl">Viewing</span>
-          <button class="osd-weeknav" type="button" title="Shift range back" @click="shiftRange(-1)">&larr;</button>
-          <span style="font-family:var(--font-heading); font-size:13.5px; font-weight:700; color:var(--dark-blue); padding:2px 4px;">
-            {{ startDate }} &rarr; {{ endDate }}
-          </span>
-          <button class="osd-weeknav" type="button" title="Shift range forward" @click="shiftRange(1)">&rarr;</button>
-        </div>
+            <div class="osd-spark-grid" style="margin-top:12px;">
+              <div v-for="metric in METRICS" :key="metric" class="osd-spark-card">
+                <TrendSparkline
+                  :label="metric"
+                  :points="seriesFor(dept, metric)"
+                  :week-labels="periodLabelsFor(dept)"
+                  :mode="FLOW_METRICS.includes(metric) ? 'sum' : 'latest'"
+                  :compare-points="previousSeriesFor(dept, metric)"
+                  title="Click a point to see the items behind it"
+                  @point-click="onPointClick(dept, metric, $event)"
+                />
+              </div>
+            </div>
 
-        <div class="osd-dept-panels">
-        <div
-          v-for="dept in departments"
-          :key="dept"
-          class="osd-detail-panel"
-        >
-          <div class="osd-dept-head">
-            <p class="osd-detail-title" style="margin:0;">{{ dept }}</p>
-            <div class="flex gap-2">
-              <span class="osd-badge" :class="statusFor(dept)">Open {{ latestOf(dept, 'open') }}</span>
-              <span class="osd-badge" :class="statusFor(dept)">Pending {{ latestOf(dept, 'pending') }}</span>
+            <div
+              v-if="openPanel && openPanel.dept === dept"
+              class="osd-detail-tile"
+              style="margin-top:12px; background:#fff;"
+            >
+              <div class="flex items-center justify-between">
+                <span class="osd-detail-label capitalize" style="margin:0;">{{ openPanel.metric }} &mdash; {{ openPanel.label }}</span>
+                <button type="button" class="osd-weeknav" style="width:20px;height:20px;font-size:12px;" @click="openPanel = null">&times;</button>
+              </div>
+              <p v-if="panelLoading" class="osd-sub" style="margin:8px 0 0;">Loading&hellip;</p>
+              <p v-else-if="panelError" class="osd-sub" style="margin:8px 0 0; color:var(--red-dark);">{{ panelError }}</p>
+              <p v-else-if="panelItems.length === 0" class="osd-sub" style="margin:8px 0 0;">No items.</p>
+              <div v-else class="overflow-x-auto" style="margin-top:8px;">
+                <table class="w-full text-left" style="font-size:12.5px;">
+                  <thead style="color:var(--darker-grey); text-transform:uppercase; font-size:10.5px;">
+                    <tr>
+                      <th class="pr-3 py-1">Item</th>
+                      <th class="pr-3 py-1">Board</th>
+                      <th class="pr-3 py-1">Group / Status</th>
+                      <th class="pr-3 py-1">Created</th>
+                      <th class="pr-3 py-1">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="it in panelItems" :key="it.item_id" style="border-top:1px solid var(--border);">
+                      <td class="pr-3 py-1">
+                        <a :href="it.monday_url" target="_blank" rel="noopener" style="color:var(--light-blue);">
+                          {{ it.item_name || it.item_id }}
+                        </a>
+                      </td>
+                      <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.board_name || it.board_id }}</td>
+                      <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.status || it.group_name || '—' }}</td>
+                      <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.created_at ? new Date(it.created_at).toLocaleDateString() : '—' }}</td>
+                      <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ new Date(it.occurred_at).toLocaleDateString() }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-
-          <div class="osd-spark-grid" style="margin-top:12px;">
-            <div v-for="metric in METRICS" :key="metric" class="osd-spark-card">
-              <TrendSparkline
-                :label="metric"
-                :points="seriesFor(dept, metric)"
-                :week-labels="periodLabelsFor(dept)"
-                :mode="FLOW_METRICS.includes(metric) ? 'sum' : 'latest'"
-                :compare-points="previousSeriesFor(dept, metric)"
-                title="Click a point to see the items behind it"
-                @point-click="onPointClick(dept, metric, $event)"
-              />
-            </div>
           </div>
-
-          <div
-            v-if="openPanel && openPanel.dept === dept"
-            class="osd-detail-tile"
-            style="margin-top:12px; background:#fff;"
-          >
-            <div class="flex items-center justify-between">
-              <span class="osd-detail-label capitalize" style="margin:0;">{{ openPanel.metric }} &mdash; {{ openPanel.label }}</span>
-              <button type="button" class="osd-weeknav" style="width:20px;height:20px;font-size:12px;" @click="openPanel = null">&times;</button>
-            </div>
-            <p v-if="panelLoading" class="osd-sub" style="margin:8px 0 0;">Loading&hellip;</p>
-            <p v-else-if="panelError" class="osd-sub" style="margin:8px 0 0; color:var(--red-dark);">{{ panelError }}</p>
-            <p v-else-if="panelItems.length === 0" class="osd-sub" style="margin:8px 0 0;">No items.</p>
-            <div v-else class="overflow-x-auto" style="margin-top:8px;">
-              <table class="w-full text-left" style="font-size:12.5px;">
-                <thead style="color:var(--darker-grey); text-transform:uppercase; font-size:10.5px;">
-                  <tr>
-                    <th class="pr-3 py-1">Item</th>
-                    <th class="pr-3 py-1">Board</th>
-                    <th class="pr-3 py-1">Group / Status</th>
-                    <th class="pr-3 py-1">Created</th>
-                    <th class="pr-3 py-1">Updated</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr v-for="it in panelItems" :key="it.item_id" style="border-top:1px solid var(--border);">
-                    <td class="pr-3 py-1">
-                      <a :href="it.monday_url" target="_blank" rel="noopener" style="color:var(--light-blue);">
-                        {{ it.item_name || it.item_id }}
-                      </a>
-                    </td>
-                    <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.board_name || it.board_id }}</td>
-                    <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.status || it.group_name || '—' }}</td>
-                    <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ it.created_at ? new Date(it.created_at).toLocaleDateString() : '—' }}</td>
-                    <td class="pr-3 py-1" style="color:var(--darker-grey);">{{ new Date(it.occurred_at).toLocaleDateString() }}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-        </div>
-      </template>
+        </template>
+      </section>
     </div>
   </div>
 </template>
@@ -180,6 +188,7 @@
 import { ref, computed, onMounted } from 'vue'
 import TrendSparkline from '../components/TrendSparkline.vue'
 import LiveMetricsBar from '../components/LiveMetricsBar.vue'
+import ProductionMetricsBar from '../components/ProductionMetricsBar.vue'
 
 const METRICS = ['new', 'open', 'pending', 'closed']
 const FLOW_METRICS = ['new', 'closed'] // summed across the selected range, not just the latest period
@@ -387,6 +396,11 @@ onMounted(async () => {
   background: var(--light-blue-accent); border: 1px solid #BFE0F0; color: var(--dark-blue);
   font-size: 12.5px; border-radius: 8px; padding: 10px 14px; margin: 0 0 20px;
 }
+.osd-section {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 20px 22px; margin-bottom: 20px;
+}
+.osd-section:last-child { margin-bottom: 0; }
 .osd-section-title { font-family: var(--font-heading); font-size: 13px; font-weight: 700; margin: 0 0 12px; color: var(--dark); }
 .osd-form { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; margin-bottom: 20px; }
 .osd-form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
