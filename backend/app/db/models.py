@@ -71,3 +71,21 @@ class MondayEvent(Base):
     trigger_uuid: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
 
     board: Mapped["MondayBoard"] = relationship(back_populates="events")
+
+
+class MondayProductionSnapshot(Base):
+    """
+    Latest pull of the AI Production board (docs/monday-api-integration-plan.md),
+    computed via the outbound Monday GraphQL API rather than the webhook event
+    log above -- a separate integration. One row per board_id, upserted on
+    every refresh (scheduled every 15 min, or on-demand via the dashboard's
+    Refresh button) so the read endpoint always serves the latest pull
+    regardless of which trigger populated it.
+    """
+
+    __tablename__ = "monday_production_snapshot"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    board_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    metrics: Mapped[dict] = mapped_column(JSON)  # {"capacity": {...}, "metrics": {...}, "detail": {...}}
+    fetched_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
