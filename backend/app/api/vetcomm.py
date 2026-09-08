@@ -6,9 +6,11 @@ from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, model_validator
 
 from app.lightspeed_lookup_api import get_user_name
+from app.va_form_filler import fill_va_form
 from app.vetcomm_api import VetCommError, generate_buddy_statement, generate_statement
 from app.vetcomm_statements_api import VetCommStatementsError, get_statements, submit_statement
 
@@ -292,3 +294,34 @@ async def create_buddy_statement(payload: BuddyStatementRequest):
         "character_count": result.get("character_count"),
         "attempt_number": result.get("attempt_number"),
     }
+
+
+class VAFormRequest(BaseModel):
+    veteran_name: str
+    witness_name: str
+    relationship: BuddyRelationship
+    relationship_detail: str = ""
+    statement: str
+
+
+@router.post("/buddy-statements/va-form")
+async def download_va_form(payload: VAFormRequest):
+    """
+    Fills the real VA Form 21-10210 PDF (backend/app/assets/) with what we
+    know -- veteran/witness name, relationship checkboxes, and the statement
+    text -- and returns it for download. Everything else (SSN, address,
+    phone, email, signature) is left blank for the veteran/witness to
+    complete by hand, same as the print-preview this replaced.
+    """
+    pdf_bytes = fill_va_form(
+        veteran_name=payload.veteran_name,
+        witness_name=payload.witness_name,
+        relationship=payload.relationship,
+        relationship_detail=payload.relationship_detail,
+        statement=payload.statement,
+    )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="VA-Form-21-10210.pdf"'},
+    )

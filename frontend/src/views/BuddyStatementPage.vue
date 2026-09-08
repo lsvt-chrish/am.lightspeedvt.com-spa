@@ -229,11 +229,12 @@
             <span class="option-title">Simple statement (PDF)</span>
             <span class="option-sub">A signed letter your buddy attaches to your VA claim. Simplest option.</span>
           </button>
-          <button type="button" class="btn-download-option" @click="downloadVAForm(b)">
-            <span class="option-title">Filled VA Form 21-10210</span>
+          <button type="button" class="btn-download-option" :disabled="b.vaFormDownloading" @click="downloadVAForm(b)">
+            <span class="option-title">{{ b.vaFormDownloading ? 'Filling out the form...' : 'Filled VA Form 21-10210' }}</span>
             <span class="option-sub">The official VA lay statement form, pre-filled where we can.</span>
           </button>
         </div>
+        <p v-if="b.vaFormError" class="alert alert-danger" role="alert" style="margin-top:8px;">{{ b.vaFormError }}</p>
 
         <!-- Downloaded state -->
         <div v-else class="downloaded-notice">
@@ -296,11 +297,19 @@ function formatLabel(str) {
   return str.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+// Seeded from the veteran's latest saved personal statement (see
+// prefillConditionFromLatestPersonalStatement) once that lookup resolves.
+// Every block created after that -- including ones added later via "+ Add
+// another buddy statement" -- starts with this condition already filled in,
+// since buddy statements are usually written in a batch for one condition;
+// the veteran can still change it per block.
+const defaultCondition = reactive({ name: '', category: '' })
+
 let nextKey = 1
 function newBuddy() {
   return reactive({
     key: nextKey++,
-    condition: { name: '', category: '' },
+    condition: { name: defaultCondition.name, category: defaultCondition.category },
     relationship: '',
     theirName: '',
     theirRelDetail: '',
@@ -315,6 +324,8 @@ function newBuddy() {
     submitting: false,
     error: '',
     downloaded: false,
+    vaFormDownloading: false,
+    vaFormError: '',
   })
 }
 
@@ -446,13 +457,38 @@ function downloadPDF(b) {
   markDownloaded(b)
 }
 
-function downloadVAForm(b) {
-  const w = window.open('', '_blank')
-  if (!w) { alert('Please allow pop-ups so we can open the form preview.'); return }
-  w.document.write(buildVAFormHTML(b))
-  w.document.close()
-  setTimeout(() => { w.focus(); w.print() }, 300)
-  markDownloaded(b)
+async function downloadVAForm(b) {
+  b.vaFormError = ''
+  b.vaFormDownloading = true
+  try {
+    const res = await fetch('/api/vetcomm/buddy-statements/va-form', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        veteran_name: veteranName.value.trim(),
+        witness_name: b.theirName.trim(),
+        relationship: b.relationship,
+        relationship_detail: b.theirRelDetail.trim(),
+        statement: b.statement.trim(),
+      }),
+    })
+    if (!res.ok) throw new Error('Failed to fill the VA form.')
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'VA-Form-21-10210.pdf'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+    markDownloaded(b)
+  } catch (e) {
+    b.vaFormError = e.message || 'Failed to download the VA form.'
+  } finally {
+    b.vaFormDownloading = false
+  }
 }
 
 function buildDownloadHTML(b) {
@@ -497,125 +533,6 @@ function buildDownloadHTML(b) {
     </body></html>`
 }
 
-function mapRelationshipToVACheckbox(rel, relDetail) {
-  if (rel === 'buddy' || rel === 'officer') return { boxServed: true, boxFamily: false, boxOther: false, otherText: '' }
-  if (rel === 'family' || rel === 'friend') return { boxServed: false, boxFamily: true, boxOther: false, otherText: '' }
-  if (rel === 'other') return { boxServed: false, boxFamily: false, boxOther: true, otherText: relDetail || '' }
-  return { boxServed: false, boxFamily: false, boxOther: false, otherText: '' }
-}
-
-function buildVAFormHTML(b) {
-  const stmt = b.statement.trim()
-  const theirName = b.theirName.trim() || '[Their Name]'
-  const veteran = veteranName.value.trim() || '[Veteran Name]'
-  const condition = b.condition.name || ''
-  const cbx = mapRelationshipToVACheckbox(b.relationship, b.theirRelDetail)
-  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VA Form 21-10210, Statement from ${escapeHTML(theirName)}</title>
-    <style>
-      body { font-family: Arial, Helvetica, sans-serif; max-width: 780px; margin: 20px auto; padding: 0 30px; color: #000; line-height: 1.4; font-size: 10pt; }
-      .warn { background: #fff8c4; border: 2px solid #d4a017; padding: 12px 14px; margin-bottom: 18px; font-size: 10pt; }
-      .warn ul { margin: 6px 0 0 20px; padding: 0; }
-      .header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
-      .header .agency { font-weight: bold; font-size: 12pt; }
-      .header .omb { font-size: 8pt; text-align: right; }
-      .form-title { text-align: center; font-size: 14pt; font-weight: bold; padding: 6px 0; border-top: 1px solid #000; border-bottom: 1px solid #000; margin-bottom: 14px; }
-      .section-header { background: #cccccc; padding: 6px 8px; font-weight: bold; font-size: 10pt; text-align: center; margin-top: 14px; margin-bottom: 8px; border: 1px solid #000; }
-      .field-row { display: flex; gap: 0; margin-bottom: 6px; border: 1px solid #000; }
-      .field-cell { padding: 4px 6px; border-right: 1px solid #000; flex: 1; min-height: 30px; }
-      .field-cell:last-child { border-right: none; }
-      .field-label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; margin-bottom: 2px; }
-      .field-value { font-size: 11pt; font-weight: bold; }
-      .filled-cell { background: #e8f5e9; }
-      .empty-cell { background: #fff9c4; }
-      .empty-cell .field-value::before { content: "TO BE COMPLETED BY BUDDY"; color: #b71c1c; font-style: italic; font-size: 9pt; font-weight: normal; }
-      .statement-box { border: 1px solid #000; padding: 10px 12px; min-height: 200px; margin-bottom: 8px; background: #e8f5e9; }
-      .statement-box .label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; margin-bottom: 6px; }
-      .statement-text { font-size: 10.5pt; line-height: 1.55; text-align: justify; white-space: pre-wrap; }
-      .cbx-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 8px 0; padding: 8px 10px; border: 1px solid #000; background: #e8f5e9; }
-      .cbx-item { display: flex; align-items: center; gap: 6px; font-size: 9pt; }
-      .cbx { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #000; text-align: center; line-height: 12px; font-size: 12pt; font-weight: bold; }
-      .cbx.checked::before { content: "X"; }
-      .sig-row { display: flex; gap: 0; border: 1px solid #000; margin-top: 10px; background: #fff9c4; }
-      .sig-cell { padding: 20px 8px 4px; border-right: 1px solid #000; flex: 1; }
-      .sig-cell:last-child { border-right: none; }
-      .sig-label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; }
-      .sig-note { color: #b71c1c; font-style: italic; font-size: 9pt; }
-      .footer { border-top: 1px solid #000; padding-top: 6px; margin-top: 20px; font-size: 8pt; display: flex; justify-content: space-between; }
-      .page-break { page-break-after: always; }
-      .legend { display: flex; gap: 16px; font-size: 8.5pt; margin: 8px 0 14px; padding: 6px 10px; background: #f5f5f5; border: 1px dashed #999; }
-      .legend .swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid #666; vertical-align: middle; margin-right: 4px; }
-      .legend .swatch.green { background: #e8f5e9; }
-      .legend .swatch.yellow { background: #fff9c4; }
-      @media print { body { margin: 10px auto; } .warn { break-inside: avoid; } }
-    </style></head><body>
-    <div class="warn">
-      <strong>Preview of VA Form 21-10210 (Lay/Witness Statement) with what we could pre-fill for you.</strong>
-      <div style="margin-top:6px;">
-        The green fields have been filled from your name and the buddy statement you generated. The yellow fields must be completed by hand by <strong>${escapeHTML(theirName)}</strong> before submitting to the VA:
-      </div>
-      <ul>
-        <li>Section I: Your Social Security Number, VA File Number, Date of Birth, Mailing Address, Phone, Email</li>
-        <li>Section IV (Witness Contact): ${escapeHTML(theirName)}'s Phone Number and Email Address</li>
-        <li>Section V: ${escapeHTML(theirName)}'s Signature and the Date Signed</li>
-      </ul>
-      <div style="margin-top:6px;">
-        Once complete, mail to: <strong>Department of Veterans Affairs, Evidence Intake Center, P.O. Box 4444, Janesville, WI 53547-4444</strong>.
-      </div>
-    </div>
-    <div class="legend">
-      <span><span class="swatch green"></span>Pre-filled</span>
-      <span><span class="swatch yellow"></span>To be completed by hand</span>
-    </div>
-    <div class="header">
-      <div class="agency">Department of Veterans Affairs</div>
-      <div class="omb">OMB Approved No. 2900-0881<br>Respondent Burden: 10 Minutes<br>Expiration Date: 07/31/2027</div>
-    </div>
-    <div class="form-title">LAY/WITNESS STATEMENT</div>
-    <div class="section-header">SECTION I: VETERAN'S IDENTIFICATION INFORMATION</div>
-    <div class="field-row"><div class="field-cell filled-cell" style="flex:3;"><div class="field-label">1. Veteran's Name (First, Middle Initial, Last)</div><div class="field-value">${escapeHTML(veteran)}</div></div></div>
-    <div class="field-row">
-      <div class="field-cell empty-cell"><div class="field-label">2. Social Security Number</div><div class="field-value"></div></div>
-      <div class="field-cell empty-cell"><div class="field-label">3. VA File Number</div><div class="field-value"></div></div>
-      <div class="field-cell empty-cell"><div class="field-label">4. Date of Birth (MM/DD/YYYY)</div><div class="field-value"></div></div>
-    </div>
-    <div class="field-row"><div class="field-cell empty-cell"><div class="field-label">6. Current Mailing Address (Number and Street, City, State, ZIP)</div><div class="field-value"></div></div></div>
-    <div class="field-row">
-      <div class="field-cell empty-cell"><div class="field-label">7. Telephone Number</div><div class="field-value"></div></div>
-      <div class="field-cell empty-cell" style="flex:2;"><div class="field-label">8. E-Mail Address</div><div class="field-value"></div></div>
-    </div>
-    <div class="section-header">SECTION II: CLAIMANT'S IDENTIFICATION INFORMATION</div>
-    <div class="field-row"><div class="field-cell" style="background:#f5f5f5;"><div class="field-value" style="font-style:italic;color:#555;text-align:center;">Skip this section. Claimant is the veteran (see Section I).</div></div></div>
-    <div class="page-break"></div>
-    <div class="section-header">SECTION III: STATEMENT</div>
-    <div style="font-size:9pt;margin-bottom:6px;"><strong>Claimed issue this statement addresses:</strong> ${escapeHTML(condition || '[Not specified]')}</div>
-    <div class="statement-box">
-      <div class="label">17. Statement (What you know or have observed about facts relevant to this claim)</div>
-      <div class="statement-text">${escapeHTML(stmt)}</div>
-    </div>
-    <div class="page-break"></div>
-    <div class="section-header">SECTION IV: WITNESS CONTACT INFORMATION</div>
-    <div class="field-row"><div class="field-cell filled-cell"><div class="field-label">18. Witness Name (First, Middle Initial, Last)</div><div class="field-value">${escapeHTML(theirName)}</div></div></div>
-    <div style="font-size:8pt;font-weight:bold;text-transform:uppercase;color:#333;margin-top:10px;margin-bottom:4px;">19. Relationship to Veteran/Claimant (Check all that apply)</div>
-    <div class="cbx-row">
-      <div class="cbx-item"><span class="cbx ${cbx.boxServed ? 'checked' : ''}"></span>Served with Veteran/Claimant</div>
-      <div class="cbx-item"><span class="cbx ${cbx.boxFamily ? 'checked' : ''}"></span>Family/Friend of Veteran/Claimant</div>
-      <div class="cbx-item"><span class="cbx"></span>Coworker/Supervisor of Veteran/Claimant</div>
-      <div class="cbx-item"><span class="cbx ${cbx.boxOther ? 'checked' : ''}"></span>Other (Specify): ${cbx.boxOther ? escapeHTML(cbx.otherText) : ''}</div>
-    </div>
-    <div class="field-row">
-      <div class="field-cell empty-cell"><div class="field-label">20. Telephone Number</div><div class="field-value"></div></div>
-      <div class="field-cell empty-cell" style="flex:2;"><div class="field-label">21. E-Mail Address</div><div class="field-value"></div></div>
-    </div>
-    <div class="section-header">SECTION V: CERTIFICATION OF STATEMENT AND SIGNATURE</div>
-    <div style="font-size:9pt;margin-bottom:6px;font-style:italic;">I CERTIFY THAT I have completed this statement and that its information is true and correct to the best of my knowledge and belief.</div>
-    <div class="sig-row">
-      <div class="sig-cell" style="flex:2;"><div class="sig-label">22A. Witness Signature (REQUIRED)</div><div class="sig-note">Sign here by hand</div></div>
-      <div class="sig-cell"><div class="sig-label">22B. Date Signed (MM/DD/YYYY)</div><div class="sig-note">Fill in date of signing</div></div>
-    </div>
-    <div class="footer"><span>VA FORM 21-10210 (JUL 2024)</span><span>Statement generated ${new Date().toLocaleDateString('en-US')}</span></div>
-    </body></html>`
-}
-
 /* ---------------------------------------------------------------------
    Host theme + veteran-name prefill (same LSVT_GUSERID cookie pattern as
    VetCommStatementPage.vue). No Select2 here -- blocks are added/removed
@@ -645,19 +562,27 @@ function readCookie(name) {
 // point if one was saved. Buddy statements themselves are never saved (see
 // docs/vetcomm-buddy-statement-api.md), so this is the personal-statement
 // page's save/resume data (GET /vetcomm/statements/{user_id}/latest), not
-// anything buddy-statement-specific. Only fills the first block, and only if
-// the veteran hasn't already typed something into it.
+// anything buddy-statement-specific.
+//
+// Sets `defaultCondition`, which every block created from this point on
+// (including the already-created first block, and any later added via "+ Add
+// another buddy statement") picks up -- see newBuddy(). Only touches the
+// first block directly here, and only if the veteran hasn't already typed
+// something into it; later blocks get it for free through defaultCondition.
 async function prefillConditionFromLatestPersonalStatement(userId) {
   const first = buddies.value[0]
-  if (!first || first.condition.name.trim() || first.condition.category) return
   try {
     const r = await fetch(`/api/vetcomm/statements/${encodeURIComponent(userId)}/latest`, { credentials: 'include' })
     if (!r.ok) return
     const data = await r.json()
     const condition = data.found && data.request?.condition
     if (!condition) return
-    first.condition.name = condition.name || ''
-    first.condition.category = condition.category || ''
+    defaultCondition.name = condition.name || ''
+    defaultCondition.category = condition.category || ''
+    if (first && !first.condition.name.trim() && !first.condition.category) {
+      first.condition.name = defaultCondition.name
+      first.condition.category = defaultCondition.category
+    }
   } catch (e) {
     // Best-effort prefill only -- fall through to a blank, editable field.
   }
@@ -849,7 +774,8 @@ window.addEventListener('beforeunload', (e) => {
   padding: 14px 16px; text-align: left; cursor: pointer; transition: all .15s; font-family: inherit;
   display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0;
 }
-.btn-download-option:hover { background: #fff5f5; }
+.btn-download-option:hover:not(:disabled) { background: #fff5f5; }
+.btn-download-option:disabled { opacity: .6; cursor: wait; }
 .btn-download-option .option-title { font-size: 14px; font-weight: 800; color: var(--secondary-color); display: flex; align-items: center; gap: 8px; }
 .btn-download-option .option-title::before { content: "\2193"; font-size: 15px; font-weight: 900; }
 .btn-download-option .option-sub { font-size: 11.5px; font-weight: 500; color: var(--gray-500); line-height: 1.4; }
