@@ -76,3 +76,56 @@ async def generate_statement(
     message = (error or {}).get("message", "VetComm request failed.")
     logger.warning("vetcomm generate_statement failed status=%s code=%s", resp.status_code, code)
     raise VetCommError(code=code, message=message, status_code=resp.status_code, details=error or {})
+
+
+async def generate_buddy_statement(
+    request_id: str,
+    veteran_name: str,
+    condition: dict[str, Any],
+    witness: dict[str, Any],
+    event: dict[str, Any] | None = None,
+    impact: dict[str, Any] | None = None,
+    service_context: dict[str, Any] | None = None,
+    regeneration: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """
+    Call POST /buddy-statements/generate -- lay/witness statements written in
+    the witness's voice, per docs/vetcomm-buddy-statement-api.md. Separate
+    endpoint from personal statements above, but identical auth/signing.
+    Raises VetCommError on any 4xx/5xx with a structured error body.
+    """
+    url = f"{VETCOMM_API_BASE_URL}/api/v1/buddy-statements/generate"
+    body = {
+        "request_id": request_id,
+        "veteran_name": veteran_name,
+        "condition": condition,
+        "witness": witness,
+        "event": event,
+        "impact": impact,
+        "service_context": service_context or {},
+        "regeneration": regeneration,
+    }
+    body_bytes = json.dumps(body).encode()
+    headers = {
+        "Authorization": f"Bearer {VETCOMM_API_KEY}",
+        "Content-Type": "application/json",
+    }
+    if VETCOMM_SHARED_SECRET:
+        headers["X-VetComm-Signature"] = _signature(body_bytes)
+
+    async with httpx.AsyncClient(timeout=VETCOMM_API_TIMEOUT) as client:
+        resp = await client.post(url, content=body_bytes, headers=headers)
+
+    try:
+        data = resp.json()
+    except Exception:
+        data = {}
+
+    if resp.status_code == 200 and isinstance(data, dict) and data.get("status") == "success":
+        return data
+
+    error = data.get("error") if isinstance(data, dict) else None
+    code = (error or {}).get("code", "internal_error")
+    message = (error or {}).get("message", "VetComm request failed.")
+    logger.warning("vetcomm generate_buddy_statement failed status=%s code=%s", resp.status_code, code)
+    raise VetCommError(code=code, message=message, status_code=resp.status_code, details=error or {})

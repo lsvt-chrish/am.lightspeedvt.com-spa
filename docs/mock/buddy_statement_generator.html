@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Buddy Statement Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1a2b4c; --navy-light:#2a3d63; --red:#e53935; --red-dark:#c62828;
+    --white:#ffffff; --gray-50:#f8f9fb; --gray-100:#f1f3f8; --gray-200:#e5e8ef;
+    --gray-300:#d1d6e0; --gray-400:#a3adc0; --gray-500:#6b7383; --gray-600:#4a5262;
+    --gray-700:#3a4252; --green:#2e7d32; --yellow:#f9a825; --yellow-light:#fffbe6;
+    --font:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
+    --r-sm:6px; --r-md:8px; --r-lg:12px;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:var(--font);background:var(--gray-100);color:var(--navy);line-height:1.5;padding:24px 16px 40px;}
+  .page{max-width:820px;margin:0 auto;background:var(--white);border-radius:var(--r-lg);box-shadow:0 2px 12px rgba(26,43,76,.06);overflow:hidden;}
+  .page-header{padding:26px 32px 22px;border-bottom:1px solid var(--gray-200);}
+  .page-header h1{margin:0 0 6px;font-size:22px;font-weight:800;color:var(--navy);}
+  .page-subtitle{font-size:14px;color:var(--gray-500);line-height:1.55;}
+  .page-content{padding:24px 32px 32px;}
+
+  /* Why panel */
+  .why-panel{background:var(--navy);border-radius:var(--r-lg);padding:18px 22px;margin-bottom:22px;border-left:5px solid var(--red);}
+  .why-title{display:flex;align-items:center;gap:11px;color:#fff;font-size:15px;font-weight:800;margin-bottom:12px;line-height:1.35;}
+  .why-icon{width:28px;height:28px;border-radius:7px;background:rgba(229,57,53,.25);color:var(--red);font-size:15px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .why-body p{color:rgba(255,255,255,.85);font-size:13px;line-height:1.65;margin:0 0 12px;}
+  .why-body strong{color:#fff;font-weight:700;}
+  .why-list{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:var(--r-md);padding:12px 14px;margin-bottom:12px;}
+  .why-list>div{font-size:12.5px;color:rgba(255,255,255,.78);line-height:1.55;margin-bottom:6px;}
+  .why-list>div:last-child{margin-bottom:0;}
+  .why-list strong{color:#fff;margin-right:3px;}
+  .why-closer{color:#fff;font-size:13px;margin-top:6px;margin-bottom:0;font-weight:700;}
+
+  /* Statement counter */
+  .counter-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-md);margin-bottom:18px;flex-wrap:wrap;gap:8px;}
+  .counter-text{font-size:14px;font-weight:700;color:var(--navy);}
+  .counter-text .count-num{color:var(--red);}
+  .counter-rec{font-size:12px;color:var(--gray-500);font-weight:500;}
+
+  /* Buddy statement block */
+  .buddy-statement{border:1px solid var(--gray-200);border-radius:var(--r-lg);padding:18px;margin-bottom:14px;background:var(--gray-50);}
+  .buddy-statement.saved{background:#f0f9ee;border-color:#c8e6c9;}
+  .buddy-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .buddy-num{font-size:13px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;}
+  .buddy-header-actions{display:flex;align-items:center;gap:10px;}
+  .btn-remove{background:none;border:none;font-size:20px;color:var(--gray-400);cursor:pointer;padding:0 6px;line-height:1;font-family:var(--font);}
+  .btn-remove:hover{color:var(--red);}
+
+  /* Section within a buddy statement */
+  .section{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--r-md);padding:14px 16px;margin-bottom:12px;}
+  .section-label{font-size:12px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:11px;}
+  .section-hint{font-size:11.5px;color:var(--gray-500);line-height:1.5;margin-top:-6px;margin-bottom:11px;}
+
+  /* Relationship grid */
+  .rel-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;}
+  @media(min-width:640px){.rel-grid{grid-template-columns:repeat(3,1fr);}}
+  .rel-btn{background:var(--white);border:1.5px solid var(--gray-300);border-radius:var(--r-md);padding:11px 12px;text-align:left;cursor:pointer;transition:all .15s;font-family:var(--font);display:flex;flex-direction:column;align-items:flex-start;gap:3px;min-height:64px;}
+  .rel-btn:hover{border-color:var(--navy);background:rgba(26,43,76,.02);}
+  .rel-btn.selected{border-color:var(--navy);background:rgba(26,43,76,.06);border-width:2px;padding:10px 11px;}
+  .rel-title{font-size:13px;font-weight:800;color:var(--navy);}
+  .rel-sub{font-size:10.5px;font-weight:500;color:var(--gray-500);line-height:1.35;}
+
+  /* Field basics */
+  .field{margin-bottom:12px;}
+  .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+  .field label .optional{font-weight:500;color:var(--gray-500);font-size:11px;margin-left:4px;}
+  .field-hint{font-size:11px;color:var(--gray-500);margin-bottom:6px;line-height:1.5;}
+  .field input[type="text"],.field textarea{width:100%;padding:8px 11px;border:1.5px solid var(--gray-300);border-radius:var(--r-md);font-family:var(--font);font-size:13px;color:var(--navy);background:var(--white);}
+  .field textarea{resize:vertical;min-height:60px;line-height:1.5;}
+  .field input:focus,.field textarea:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,43,76,.07);outline:none;}
+  .field-row{display:grid;grid-template-columns:1fr;gap:12px;}
+  @media(min-width:520px){.field-row{grid-template-columns:1fr 2fr;}}
+
+  /* Witness toggles */
+  .witness-toggles{display:flex;flex-direction:column;gap:8px;}
+  .witness-toggle{display:flex;align-items:flex-start;gap:10px;padding:11px 13px;border:1.5px solid var(--gray-300);border-radius:var(--r-md);cursor:pointer;background:var(--white);transition:all .15s;}
+  .witness-toggle:hover{border-color:var(--navy);}
+  .witness-toggle input[type="checkbox"]{margin-top:2px;width:16px;height:16px;accent-color:var(--navy);flex-shrink:0;cursor:pointer;}
+  .witness-toggle:has(input:checked){border-color:var(--navy);background:rgba(26,43,76,.04);}
+  .witness-content{display:flex;flex-direction:column;gap:2px;}
+  .witness-title{font-size:13px;font-weight:700;color:var(--navy);}
+  .witness-sub{font-size:11.5px;font-weight:500;color:var(--gray-500);line-height:1.4;}
+
+  /* Generate button */
+  .generate-row{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px 0;}
+  .btn-generate{background:var(--navy);border:1px solid var(--navy);color:#fff;border-radius:var(--r-md);padding:11px 26px;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;transition:background .15s;}
+  .btn-generate:hover:not(:disabled){background:var(--navy-light);}
+  .btn-generate:disabled{opacity:.6;cursor:wait;}
+  .generate-hint{font-size:11px;color:var(--gray-500);text-align:center;max-width:380px;line-height:1.5;}
+
+  /* Output box */
+  .output-wrap{margin-top:12px;background:var(--white);border:2px solid var(--navy);border-radius:var(--r-md);padding:14px 16px;}
+  .output-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:6px;}
+  .output-title{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;}
+  .attempt-badge{font-size:11px;font-weight:700;color:var(--gray-500);background:var(--gray-100);padding:3px 9px;border-radius:100px;}
+  .output-text{min-height:180px;padding:11px 13px;background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-md);font-size:13.5px;line-height:1.65;color:var(--navy);white-space:pre-wrap;outline:none;}
+  .output-text:focus{border-color:var(--navy);background:var(--white);}
+  .output-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;gap:14px;flex-wrap:wrap;}
+  .char-count{font-size:11px;font-weight:700;color:var(--gray-500);}
+  .char-count.over{color:var(--red);}
+  .output-hint{font-size:11px;color:var(--gray-400);font-style:italic;}
+
+  /* Regenerate */
+  .regen-wrap{margin-top:12px;padding:14px 16px;background:var(--white);border:1px dashed var(--gray-300);border-radius:var(--r-md);}
+  .regen-label{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;}
+  .regen-hint{font-size:11px;color:var(--gray-500);margin-bottom:8px;}
+  .regen-actions{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .btn-regenerate{background:var(--white);border:1.5px solid var(--gray-300);color:var(--navy);border-radius:var(--r-md);padding:9px 18px;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;flex:1;min-width:180px;}
+  .btn-regenerate:hover:not(:disabled){border-color:var(--navy);background:var(--gray-50);}
+  .btn-regenerate:disabled{opacity:.6;cursor:wait;}
+
+  /* Max attempts */
+  .max-attempts{margin-top:12px;padding:12px 16px;background:var(--yellow-light);border:1px solid #ffe082;border-radius:var(--r-md);font-size:12px;color:#5d3a00;display:flex;flex-direction:column;gap:10px;line-height:1.5;}
+
+  .btn-edit-again{background:var(--white);border:1px solid var(--gray-300);color:var(--gray-600);border-radius:var(--r-sm);padding:6px 12px;font-size:11px;font-weight:600;font-family:var(--font);cursor:pointer;}
+  .btn-edit-again:hover{border-color:var(--navy);color:var(--navy);}
+
+  /* Add button */
+  .add-buddy-wrap{margin-top:6px;text-align:center;}
+  .btn-add-buddy{background:var(--white);border:1.5px dashed var(--gray-400);color:var(--navy);border-radius:var(--r-md);padding:12px 24px;font-size:14px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;width:100%;}
+  .btn-add-buddy:hover:not(:disabled){border-color:var(--navy);background:var(--gray-50);}
+  .btn-add-buddy:disabled{opacity:.5;cursor:not-allowed;}
+  .add-buddy-limit{font-size:11px;color:var(--gray-500);margin-top:8px;}
+
+  /* Portal info panel (pre-filled from portal profile) */
+  .portal-info-panel{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--r-md);padding:14px 16px;margin-bottom:18px;}
+  .portal-info-item{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .portal-info-label{font-size:12px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.4px;}
+  .portal-info-value{font-size:16px;font-weight:800;color:var(--navy);}
+  .portal-info-hint{font-size:11.5px;color:var(--gray-500);margin-top:8px;line-height:1.5;}
+
+  /* Condition selector (per-block) */
+  .condition-select{width:100%;padding:10px 12px;border:1.5px solid var(--gray-300);border-radius:var(--r-md);font-family:var(--font);font-size:14px;color:var(--navy);background:var(--white);cursor:pointer;-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231a2b4c' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'/%3e%3c/svg%3e");background-repeat:no-repeat;background-position:right 12px center;background-size:16px;padding-right:36px;}
+  .condition-select:focus{border-color:var(--navy);box-shadow:0 0 0 3px rgba(26,43,76,.07);outline:none;}
+  .condition-select.picked{border-color:var(--navy);background-color:rgba(26,43,76,.03);}
+  .buddy-condition-tag{display:inline-flex;align-items:center;background:rgba(26,43,76,.08);color:var(--navy);font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;}
+
+  /* Perspective note (top of detail sections) */
+  .perspective-note{background:#e8f0fe;border-left:3px solid var(--navy);padding:9px 12px;font-size:11.5px;color:var(--navy);line-height:1.5;border-radius:0 4px 4px 0;margin-bottom:12px;}
+  .perspective-note strong{font-weight:700;}
+
+  /* HIPAA / not-saved warning */
+  .not-saved-banner{background:#fffbe6;border:1.5px solid var(--yellow);border-radius:var(--r-md);padding:11px 14px;margin-bottom:18px;color:#5d3a00;font-size:12.5px;line-height:1.55;display:flex;align-items:flex-start;gap:10px;}
+  .not-saved-banner-icon{width:22px;height:22px;background:var(--yellow);color:#5d3a00;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex-shrink:0;line-height:1;}
+  .not-saved-banner strong{color:#5d3a00;font-weight:800;}
+  .not-saved-inline{background:#fffbe6;border:1.5px solid var(--yellow);border-radius:var(--r-md);padding:11px 14px;margin-top:14px;color:#5d3a00;font-size:12.5px;line-height:1.55;font-weight:600;display:flex;align-items:flex-start;gap:10px;}
+  .not-saved-inline strong{color:#5d3a00;font-weight:800;}
+
+  /* Download action row */
+  .download-row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;}
+  .btn-download-pdf{background:var(--red);border:1px solid var(--red);color:#fff;border-radius:var(--r-md);padding:11px 22px;font-size:14px;font-weight:800;font-family:var(--font);cursor:pointer;transition:background .15s;flex:1;min-width:220px;display:inline-flex;align-items:center;justify-content:center;gap:8px;}
+  .btn-download-pdf:hover{background:var(--red-dark);}
+  .btn-download-pdf::before{content:"\2193";font-size:16px;font-weight:900;}
+  .btn-regen-secondary{background:var(--white);border:1.5px solid var(--gray-300);color:var(--navy);border-radius:var(--r-md);padding:11px 20px;font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .15s;}
+  .btn-regen-secondary:hover{border-color:var(--navy);background:var(--gray-50);}
+
+  /* Downloaded state */
+  .downloaded-badge{font-size:11px;font-weight:700;color:var(--green);display:inline-flex;align-items:center;gap:5px;}
+  .downloaded-badge::before{content:"\2713";font-size:12px;font-weight:900;}
+  .downloaded-notice{margin-top:12px;padding:12px 14px;background:#f0f9ee;border:1px solid #c8e6c9;border-radius:var(--r-md);color:#1b5e20;font-size:12.5px;line-height:1.55;}
+  .downloaded-notice strong{font-weight:800;}
+  .downloaded-actions-row{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  .btn-redownload{background:var(--white);border:1.5px solid var(--green);color:var(--green);border-radius:var(--r-md);padding:7px 14px;font-size:12px;font-weight:700;font-family:var(--font);cursor:pointer;}
+  .btn-redownload:hover{background:#f0f9ee;}
+
+  /* Two-option download group */
+  .download-choice-header{font-size:12px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px;}
+  .download-buttons-row{display:flex;flex-direction:column;gap:10px;}
+  @media(min-width:640px){.download-buttons-row{flex-direction:row;}}
+  .btn-download-option{background:var(--white);border:2px solid var(--red);color:var(--navy);border-radius:var(--r-md);padding:14px 16px;text-align:left;cursor:pointer;transition:all .15s;font-family:var(--font);display:flex;flex-direction:column;gap:5px;flex:1;min-width:0;}
+  .btn-download-option:hover{background:#fff5f5;}
+  .btn-download-option .option-title{font-size:14px;font-weight:800;color:var(--red);display:flex;align-items:center;gap:8px;}
+  .btn-download-option .option-title::before{content:"\2193";font-size:15px;font-weight:900;}
+  .btn-download-option .option-sub{font-size:11.5px;font-weight:500;color:var(--gray-500);line-height:1.4;}
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="page-header">
+    <h1>Buddy Statement Generator</h1>
+    <div class="page-subtitle">Statements from the people who know you strengthen your claim. Build them here.</div>
+  </div>
+
+  <div class="page-content">
+
+    <!-- Why buddy statements matter -->
+    <div class="why-panel">
+      <div class="why-title">
+        <div class="why-icon">!</div>
+        <span>Why buddy statements matter</span>
+      </div>
+      <div class="why-body">
+        <p>Buddy statements are written by people who know you personally: family, friends, or the folks you served with. They give the VA a picture your medical records cannot: what you were like before, what happened, and how your condition affects the people close to you.</p>
+        <div class="why-list">
+          <div><strong>Family</strong> sees the daily impact on your life at home.</div>
+          <div><strong>Service buddies</strong> saw what happened, or lived through the same events.</div>
+          <div><strong>Friends and former officers</strong> can speak to who you were before service.</div>
+        </div>
+        <p class="why-closer">We recommend at least 3 statements, from at least 2 different perspectives.</p>
+      </div>
+    </div>
+
+    <!-- Veteran name (pulled from portal profile) -->
+    <div class="portal-info-panel">
+      <div class="portal-info-item">
+        <span class="portal-info-label">Your name (from your portal profile)</span>
+        <span class="portal-info-value" id="veteranName">John Miller</span>
+      </div>
+      <div class="portal-info-hint">Each buddy statement will read "Statement from [Their Name] for John Miller" at the top. Update your name in your portal settings if needed.</div>
+    </div>
+
+    <!-- Counter -->
+    <div class="counter-bar">
+      <span class="counter-text"><span class="count-num" id="countNum">0</span> of 5 buddy statements added</span>
+      <span class="counter-rec">Recommended: at least 3, from at least 2 different perspectives</span>
+    </div>
+
+    <!-- HIPAA / not-saved warning -->
+    <div class="not-saved-banner">
+      <div class="not-saved-banner-icon">!</div>
+      <div><strong>Nothing here is saved on our portal.</strong> For HIPAA reasons, we do not store buddy statements. Download each one as PDF as soon as you're happy with it. If you close this page or refresh, your work is gone.</div>
+    </div>
+
+    <!-- Statement list -->
+    <div id="statementList">
+      <!-- First block is added by JS on load -->
+    </div>
+
+    <!-- Add button -->
+    <div class="add-buddy-wrap">
+      <button id="addBtn" class="btn-add-buddy" onclick="addBuddyStatement()">+ Add another buddy statement</button>
+      <div class="add-buddy-limit" id="addLimit"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  /* ============================================================
+     BUDDY STATEMENT GENERATOR (prototype)
+     Real endpoint (Claude Sonnet 4.6) swaps in for production;
+     everything else stays.
+     ============================================================ */
+
+  let buddyCount = 0;
+  const MAX_BUDDIES = 5;
+  const MAX_ATTEMPTS = 5;
+  const TARGET_MIN = 1400;
+  const TARGET_MAX = 2000;
+  const HARD_CAP = 2500;
+
+  window.addEventListener('DOMContentLoaded', () => {
+    addBuddyStatement();
+  });
+
+  // Warn vet before they close/refresh if they have any statements in progress
+  window.addEventListener('beforeunload', (e) => {
+    const hasAny = document.querySelector('.buddy-statement');
+    if (hasAny) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  function addBuddyStatement() {
+    if (buddyCount >= MAX_BUDDIES) return;
+    buddyCount++;
+    const list = document.getElementById('statementList');
+    const block = document.createElement('div');
+    block.className = 'buddy-statement';
+    block.dataset.relationship = '';
+    block.dataset.witnessEvent = 'false';
+    block.dataset.witnessImpact = 'false';
+    block.dataset.attempt = '0';
+    block.innerHTML = buildBlockHTML(buddyCount);
+    list.appendChild(block);
+    updateCounter();
+    updateAddButton();
+  }
+
+  function removeBuddyStatement(btn) {
+    const block = btn.closest('.buddy-statement');
+    block.remove();
+    // Renumber remaining blocks
+    const blocks = document.querySelectorAll('.buddy-statement');
+    blocks.forEach((b, i) => {
+      const num = b.querySelector('.buddy-num');
+      if (num) num.textContent = `Buddy Statement #${i + 1}`;
+    });
+    buddyCount = blocks.length;
+    updateCounter();
+    updateAddButton();
+  }
+
+  function updateCounter() {
+    document.getElementById('countNum').textContent = buddyCount;
+  }
+
+  function updateAddButton() {
+    const btn = document.getElementById('addBtn');
+    const limit = document.getElementById('addLimit');
+    if (buddyCount >= MAX_BUDDIES) {
+      btn.disabled = true;
+      btn.textContent = 'Maximum of 5 buddy statements reached';
+      limit.textContent = '';
+    } else {
+      btn.disabled = false;
+      btn.textContent = '+ Add another buddy statement';
+      limit.textContent = `Can add ${MAX_BUDDIES - buddyCount} more`;
+    }
+  }
+
+  function buildBlockHTML(num) {
+    return `
+      <div class="buddy-header">
+        <span class="buddy-num">Buddy Statement #${num}</span>
+        <div class="buddy-header-actions">
+          <span class="buddy-condition-tag" style="display:none;"></span>
+          <span class="downloaded-badge" style="display:none;">Downloaded</span>
+          <button type="button" class="btn-remove" onclick="removeBuddyStatement(this)" title="Remove">&times;</button>
+        </div>
+      </div>
+
+      <!-- Step 1: Condition selector (from portal) -->
+      <div class="section">
+        <div class="section-label">1. Which condition is this buddy statement about?</div>
+        <div class="section-hint">Pulled from the conditions in your portal profile. Pick the one this statement supports.</div>
+        <select class="condition-select" onchange="selectCondition(this)">
+          <option value="">Choose from your conditions...</option>
+          <option value="Right knee condition (rated 20%)">Right knee condition (rated 20%)</option>
+          <option value="Lumbar spine strain (rated 10%)">Lumbar spine strain (rated 10%)</option>
+          <option value="PTSD (rated 50%)">PTSD (rated 50%)</option>
+          <option value="Tinnitus (rated 10%)">Tinnitus (rated 10%)</option>
+          <option value="Hearing loss (rated 0%)">Hearing loss (rated 0%)</option>
+          <option value="Migraines (secondary to TBI, pending)">Migraines (secondary to TBI, pending)</option>
+        </select>
+      </div>
+
+      <!-- Step 2: Relationship -->
+      <div class="section">
+        <div class="section-label">2. Who is writing this statement?</div>
+        <div class="rel-grid">
+          <button type="button" class="rel-btn" data-rel="family" onclick="selectRelationship(this)">
+            <span class="rel-title">Family</span>
+            <span class="rel-sub">Spouse, sibling, parent, adult child</span>
+          </button>
+          <button type="button" class="rel-btn" data-rel="friend" onclick="selectRelationship(this)">
+            <span class="rel-title">Friend</span>
+            <span class="rel-sub">Long-time friend, someone who knows you well</span>
+          </button>
+          <button type="button" class="rel-btn" data-rel="buddy" onclick="selectRelationship(this)">
+            <span class="rel-title">Service Buddy</span>
+            <span class="rel-sub">Someone you served with</span>
+          </button>
+          <button type="button" class="rel-btn" data-rel="officer" onclick="selectRelationship(this)">
+            <span class="rel-title">Officer / NCO</span>
+            <span class="rel-sub">Superior, unit leadership, chain of command</span>
+          </button>
+          <button type="button" class="rel-btn" data-rel="other" onclick="selectRelationship(this)">
+            <span class="rel-title">Other</span>
+            <span class="rel-sub">Neighbor, employer, clergy, coworker</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Step 3: Name and detail -->
+      <div class="section detail-section" style="display:none;">
+        <div class="section-label">3. About them</div>
+        <div class="field-row">
+          <div class="field">
+            <label>Their name</label>
+            <input type="text" class="their-name" placeholder="e.g. Sarah Johnson">
+          </div>
+          <div class="field">
+            <label>Their relationship to you</label>
+            <input type="text" class="their-rel-detail" placeholder="e.g. My wife of 22 years">
+          </div>
+        </div>
+        <div class="field" style="margin-top:12px;">
+          <label>How and when did they first meet you?</label>
+          <div class="field-hint">Date, place, and circumstance. Gives their statement credibility with the VA.</div>
+          <textarea class="how-met" rows="2" placeholder="e.g. Met at Parris Island during basic training in November 2002, then served together in 2nd Battalion, 5th Marines"></textarea>
+        </div>
+      </div>
+
+      <!-- Step 4: Witness type -->
+      <div class="section witness-section" style="display:none;">
+        <div class="section-label">4. What can they speak to?</div>
+        <div class="section-hint">Pick one or both. This shapes what the statement is about.</div>
+        <div class="witness-toggles">
+          <label class="witness-toggle">
+            <input type="checkbox" class="wit-event" onchange="updateWitnessType(this)">
+            <div class="witness-content">
+              <span class="witness-title">They were there when it happened</span>
+              <span class="witness-sub">Witnessed the incident, injury, or exposure firsthand</span>
+            </div>
+          </label>
+          <label class="witness-toggle">
+            <input type="checkbox" class="wit-impact" onchange="updateWitnessType(this)">
+            <div class="witness-content">
+              <span class="witness-title">They've seen how the condition affects you</span>
+              <span class="witness-sub">Has known you long enough to see the changes over time</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Step 5a: Event details -->
+      <div class="section event-details" style="display:none;">
+        <div class="section-label">5. The event they witnessed</div>
+        <div class="perspective-note"><strong>Answer in your own voice.</strong> Just tell us what happened. Our AI will rewrite it from your buddy's perspective, in their voice.</div>
+        <div class="field">
+          <label>When did it happen?</label>
+          <div class="field-hint">A date, month, deployment, or general timeframe is fine.</div>
+          <input type="text" class="event-when" placeholder="e.g. November 12th, 2004, or during my 2007 deployment to Iraq">
+        </div>
+        <div class="field">
+          <label>Where?</label>
+          <input type="text" class="event-where" placeholder="e.g. On patrol outside Fallujah, or during training at Fort Bragg">
+        </div>
+        <div class="field">
+          <label>What happened?</label>
+          <div class="field-hint">Be specific. What happened to you, and what your buddy saw.</div>
+          <textarea class="event-what" rows="3" placeholder="e.g. My Humvee hit an IED. He was three vehicles behind me and was one of the first to reach us. He saw the head injury and helped carry me to the medevac."></textarea>
+        </div>
+      </div>
+
+      <!-- Step 5b: Impact details -->
+      <div class="section impact-details" style="display:none;">
+        <div class="section-label">5. What has changed for you</div>
+        <div class="perspective-note"><strong>Answer in your own voice.</strong> Tell us what has changed for you since service, and what your buddy has noticed. Our AI will write it in their voice.</div>
+        <div class="field">
+          <label>What has changed for you that they've noticed?</label>
+          <div class="field-hint">Symptoms, behavior, mood, physical limitations, relationships. In your own words.</div>
+          <textarea class="impact-change" rows="3" placeholder="e.g. Constant back pain since my second tour. Nightmares. I avoid crowds now. Lost my sense of humor. Can't pick up my kids anymore."></textarea>
+        </div>
+        <div class="field">
+          <label>Specific examples they might mention <span class="optional">(optional)</span></label>
+          <div class="field-hint">Concrete moments make the statement more powerful.</div>
+          <textarea class="impact-examples" rows="3" placeholder="e.g. I missed our family reunion because the drive was too much. I wake up screaming at least three nights a week. I turned down a promotion because it required travel."></textarea>
+        </div>
+      </div>
+
+      <!-- Generate -->
+      <div class="generate-section" style="display:none;">
+        <div class="generate-row">
+          <button type="button" class="btn-generate" onclick="generateBuddyStatement(this)">Generate this buddy statement</button>
+          <div class="generate-hint">Our AI drafts a detailed, factual statement in your buddy's voice. Target length is 1,500 to 2,000 characters, matching the depth of a strong buddy letter. You can regenerate up to 5 times with feedback.</div>
+        </div>
+      </div>
+
+      <!-- Output -->
+      <div class="output-wrap" style="display:none;">
+        <div class="output-header">
+          <span class="output-title">The buddy statement</span>
+          <span class="attempt-badge">Attempt <span class="attempt-num">1</span> of 5</span>
+        </div>
+        <div class="output-text" contenteditable="true" oninput="updateBuddyChar(this)"></div>
+        <div class="output-meta">
+          <span class="char-count">0 characters</span>
+          <span class="output-hint">You can edit directly, or use feedback below.</span>
+        </div>
+      </div>
+
+      <!-- Regenerate -->
+      <div class="regen-wrap" style="display:none;">
+        <div class="regen-label">Want to change something?</div>
+        <div class="regen-hint">Tell us what to add, remove, or adjust the tone.</div>
+        <textarea class="feedback" rows="2" placeholder='e.g. "Make it more emotional" or "Add that she missed my surgery in 2019" or "Cut the last sentence"'></textarea>
+        <div class="regen-actions">
+          <button type="button" class="btn-regenerate" onclick="regenerateBuddyStatement(this)">Regenerate with this feedback</button>
+        </div>
+      </div>
+
+      <!-- Max attempts -->
+      <div class="max-attempts" style="display:none;">
+        <div>You've used all 5 regeneration attempts. Edit the statement directly in the box above if you want small tweaks, then download.</div>
+      </div>
+
+      <!-- Not-saved warning + download action -->
+      <div class="download-section" style="display:none;">
+        <div class="not-saved-inline">
+          <div>
+            <strong>Not saved on our portal.</strong> The statement above lives only in this browser tab. Download it now, or you will lose it if you close this page. Send the file to <span class="download-recipient">the person writing it</span> for their signature, then upload the signed copy to your VA claim.
+          </div>
+        </div>
+        <div class="download-choice-header">Choose your download format:</div>
+        <div class="download-buttons-row">
+          <button type="button" class="btn-download-option" onclick="downloadPDF(this)">
+            <span class="option-title">Simple statement (PDF)</span>
+            <span class="option-sub">A signed letter your buddy attaches to your VA claim. Simplest option.</span>
+          </button>
+          <button type="button" class="btn-download-option" onclick="downloadVAForm(this)">
+            <span class="option-title">Filled VA Form 21-10210</span>
+            <span class="option-sub">The official VA lay statement form, pre-filled where we can. Your buddy still fills SSN, address, phone, and signature by hand.</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Downloaded state -->
+      <div class="downloaded-section" style="display:none;">
+        <div class="downloaded-notice">
+          <strong>Downloaded.</strong> Send the file to <span class="downloaded-recipient">the person writing it</span> for their signature. Then upload the signed copy to your VA claim. Remember, this statement is not saved on our portal.
+        </div>
+        <div class="downloaded-actions-row">
+          <button type="button" class="btn-redownload" onclick="downloadPDF(this)">Download simple statement again</button>
+          <button type="button" class="btn-redownload" onclick="downloadVAForm(this)">Download VA Form again</button>
+          <button type="button" class="btn-edit-again" onclick="editAgain(this)">Edit and regenerate</button>
+        </div>
+      </div>
+    `;
+  }
+
+  /* ============================================================
+     INTERACTIVITY
+     ============================================================ */
+
+  function selectCondition(select) {
+    const block = select.closest('.buddy-statement');
+    const val = select.value;
+    block.dataset.condition = val;
+    select.classList.toggle('picked', !!val);
+    const tag = block.querySelector('.buddy-condition-tag');
+    if (val) {
+      tag.textContent = val;
+      tag.style.display = 'inline-flex';
+    } else {
+      tag.style.display = 'none';
+    }
+    // If they already generated, reset since condition context changed
+    if (block.dataset.attempt !== '0') resetOutput(block);
+  }
+
+  function selectRelationship(btn) {
+    const block = btn.closest('.buddy-statement');
+    const rel = btn.dataset.rel;
+    block.dataset.relationship = rel;
+    block.querySelectorAll('.rel-btn').forEach(b => b.classList.toggle('selected', b === btn));
+    block.querySelector('.detail-section').style.display = '';
+    block.querySelector('.witness-section').style.display = '';
+    // Update relationship-specific placeholders
+    const nameField = block.querySelector('.their-name');
+    const relField = block.querySelector('.their-rel-detail');
+    const metField = block.querySelector('.how-met');
+    const placeholders = {
+      family: ['e.g. Sarah Johnson', 'e.g. My wife of 22 years', 'e.g. Married in June 2001 / Been my brother since childhood / Been my mother since birth'],
+      friend: ['e.g. Marcus Chen', 'e.g. Best friend since high school', 'e.g. Met in ninth grade at Central High School in September 2001'],
+      buddy: ['e.g. SSgt Mike Rivera', 'e.g. Served with me in 2nd Battalion, 5th Marines', 'e.g. Met at Parris Island during basic training in November 2002, then served together in 2nd Battalion, 5th Marines through 2007'],
+      officer: ['e.g. Cpt. James Whitfield', 'e.g. My platoon commander in Afghanistan', 'e.g. He was my platoon commander during our 2010-2011 deployment to Kandahar with the 82nd Airborne'],
+      other: ['e.g. Pastor David Lin', 'e.g. My pastor for 15 years', 'e.g. Been my pastor at Grace Community Church in Denver since March 2013'],
+    };
+    if (placeholders[rel]) {
+      nameField.placeholder = placeholders[rel][0];
+      relField.placeholder = placeholders[rel][1];
+      metField.placeholder = placeholders[rel][2];
+    }
+    // If they already picked witness type and generated, reset output
+    if (block.dataset.attempt !== '0') resetOutput(block);
+  }
+
+  function updateWitnessType(cb) {
+    const block = cb.closest('.buddy-statement');
+    const eventChecked = block.querySelector('.wit-event').checked;
+    const impactChecked = block.querySelector('.wit-impact').checked;
+    block.dataset.witnessEvent = eventChecked;
+    block.dataset.witnessImpact = impactChecked;
+    block.querySelector('.event-details').style.display = eventChecked ? '' : 'none';
+    block.querySelector('.impact-details').style.display = impactChecked ? '' : 'none';
+    // Show generate button when at least one witness type is picked
+    const anyPicked = eventChecked || impactChecked;
+    block.querySelector('.generate-section').style.display = anyPicked ? '' : 'none';
+    // If they already generated, reset
+    if (block.dataset.attempt !== '0') resetOutput(block);
+  }
+
+  function resetOutput(block) {
+    block.dataset.attempt = '0';
+    block.querySelector('.output-wrap').style.display = 'none';
+    block.querySelector('.regen-wrap').style.display = 'none';
+    block.querySelector('.max-attempts').style.display = 'none';
+    block.querySelector('.download-section').style.display = 'none';
+    block.querySelector('.downloaded-section').style.display = 'none';
+    block.classList.remove('saved');
+    block.querySelector('.downloaded-badge').style.display = 'none';
+    block.querySelector('.generate-section').style.display = '';
+  }
+
+  function generateBuddyStatement(btn) {
+    const block = btn.closest('.buddy-statement');
+    const condition = block.dataset.condition;
+    if (!condition) { alert('Pick which condition this statement is about first.'); return; }
+    const rel = block.dataset.relationship;
+    if (!rel) { alert('Pick who is writing this statement.'); return; }
+
+    const theirName = block.querySelector('.their-name').value.trim();
+    const theirRel = block.querySelector('.their-rel-detail').value.trim();
+    const howMet = block.querySelector('.how-met').value.trim();
+    if (!theirName) { alert("Enter their name."); return; }
+    if (!theirRel) { alert("Enter their relationship to you."); return; }
+    if (!howMet || howMet.length < 5) { alert("Tell us how and when they first met you."); return; }
+
+    const witnessEvent = block.dataset.witnessEvent === 'true';
+    const witnessImpact = block.dataset.witnessImpact === 'true';
+    if (!witnessEvent && !witnessImpact) { alert('Pick at least one thing they can speak to.'); return; }
+
+    let eventData = null, impactData = null;
+    if (witnessEvent) {
+      eventData = {
+        when: block.querySelector('.event-when').value.trim(),
+        where: block.querySelector('.event-where').value.trim(),
+        what: block.querySelector('.event-what').value.trim(),
+      };
+      if (!eventData.what || eventData.what.length < 15) { alert('Add more detail about what they witnessed.'); return; }
+    }
+    if (witnessImpact) {
+      impactData = {
+        change: block.querySelector('.impact-change').value.trim(),
+        examples: block.querySelector('.impact-examples').value.trim(),
+      };
+      if (!impactData.change || impactData.change.length < 15) { alert('Add more detail about what has changed for you.'); return; }
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Drafting the buddy statement...';
+    setTimeout(() => {
+      const stmt = fakeBuddyDraft(rel, theirName, theirRel, witnessEvent, witnessImpact, eventData, impactData, 0);
+      block.querySelector('.generate-section').style.display = 'none';
+      const outWrap = block.querySelector('.output-wrap');
+      outWrap.style.display = 'block';
+      const text = outWrap.querySelector('.output-text');
+      text.textContent = stmt;
+      updateBuddyChar(text);
+      block.querySelector('.regen-wrap').style.display = 'block';
+      block.querySelector('.download-section').style.display = 'block';
+      block.querySelector('.download-recipient').textContent = theirName;
+      block.dataset.attempt = '1';
+      block.querySelector('.attempt-num').textContent = '1';
+      btn.disabled = false;
+      btn.textContent = 'Generate this buddy statement';
+    }, 900);
+  }
+
+  function regenerateBuddyStatement(btn) {
+    const block = btn.closest('.buddy-statement');
+    const attempt = parseInt(block.dataset.attempt || '1') + 1;
+    const feedback = block.querySelector('.feedback').value.trim();
+    if (!feedback || feedback.length < 3) { alert('Tell us what to change.'); return; }
+
+    const rel = block.dataset.relationship;
+    const theirName = block.querySelector('.their-name').value.trim();
+    const theirRel = block.querySelector('.their-rel-detail').value.trim();
+    const witnessEvent = block.dataset.witnessEvent === 'true';
+    const witnessImpact = block.dataset.witnessImpact === 'true';
+    const eventData = witnessEvent ? {
+      when: block.querySelector('.event-when').value.trim(),
+      where: block.querySelector('.event-where').value.trim(),
+      what: block.querySelector('.event-what').value.trim(),
+    } : null;
+    const impactData = witnessImpact ? {
+      change: block.querySelector('.impact-change').value.trim(),
+      examples: block.querySelector('.impact-examples').value.trim(),
+    } : null;
+
+    btn.disabled = true;
+    btn.textContent = 'Regenerating...';
+    setTimeout(() => {
+      const stmt = fakeBuddyDraft(rel, theirName, theirRel, witnessEvent, witnessImpact, eventData, impactData, attempt - 1, feedback);
+      const text = block.querySelector('.output-text');
+      text.textContent = stmt;
+      updateBuddyChar(text);
+      block.dataset.attempt = attempt.toString();
+      block.querySelector('.attempt-num').textContent = attempt.toString();
+      block.querySelector('.feedback').value = '';
+      btn.disabled = false;
+      btn.textContent = 'Regenerate with this feedback';
+      if (attempt >= MAX_ATTEMPTS) {
+        block.querySelector('.regen-wrap').style.display = 'none';
+        block.querySelector('.max-attempts').style.display = 'flex';
+      }
+    }, 900);
+  }
+
+  function editAgain(btn) {
+    const block = btn.closest('.buddy-statement');
+    block.classList.remove('saved');
+    block.querySelector('.downloaded-badge').style.display = 'none';
+    block.querySelector('.output-text').setAttribute('contenteditable', 'true');
+    block.querySelector('.downloaded-section').style.display = 'none';
+    block.querySelector('.download-section').style.display = 'block';
+    const attempt = parseInt(block.dataset.attempt || '0');
+    if (attempt < MAX_ATTEMPTS) {
+      block.querySelector('.regen-wrap').style.display = 'block';
+    } else {
+      block.querySelector('.max-attempts').style.display = 'flex';
+    }
+  }
+
+  function updateBuddyChar(el) {
+    const block = el.closest ? el.closest('.buddy-statement') : el.querySelector('.buddy-statement');
+    const text = block.querySelector('.output-text').textContent || '';
+    const counter = block.querySelector('.char-count');
+    counter.textContent = text.length + ' characters';
+    counter.classList.toggle('over', text.length > HARD_CAP);
+  }
+
+  /* ============================================================
+     DOWNLOAD (prototype: PDF via print dialog)
+     Word/DOCX is intentionally not offered. PDF only.
+     After download, block flips to the "downloaded" state:
+     green tint, Downloaded badge, "not saved on our portal" reminder.
+     ============================================================ */
+
+  function downloadPDF(btn) {
+    const block = btn.closest('.buddy-statement');
+    const html = buildDownloadHTML(block);
+    const w = window.open('', '_blank');
+    if (!w) { alert('Please allow pop-ups so we can open the PDF preview.'); return; }
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 300);
+    // Flip to downloaded state
+    markAsDownloaded(block);
+  }
+
+  function markAsDownloaded(block) {
+    block.classList.add('saved');
+    block.querySelector('.downloaded-badge').style.display = 'inline-flex';
+    block.querySelector('.download-section').style.display = 'none';
+    block.querySelector('.downloaded-section').style.display = 'block';
+    const theirName = block.querySelector('.their-name').value.trim() || 'the person writing it';
+    block.querySelector('.downloaded-recipient').textContent = theirName;
+  }
+
+  function downloadVAForm(btn) {
+    const block = btn.closest('.buddy-statement');
+    const html = buildVAFormHTML(block);
+    const w = window.open('', '_blank');
+    if (!w) { alert('Please allow pop-ups so we can open the form preview.'); return; }
+    w.document.write(html);
+    w.document.close();
+    setTimeout(() => { w.focus(); w.print(); }, 300);
+    markAsDownloaded(block);
+  }
+
+  /* Map our relationship types to the VA Form 21-10210 Section IV checkboxes */
+  function mapRelationshipToVACheckbox(rel, relDetail) {
+    if (rel === 'buddy' || rel === 'officer') {
+      return { boxServed: true, boxFamily: false, boxCoworker: false, boxOther: false, otherText: '' };
+    }
+    if (rel === 'family' || rel === 'friend') {
+      return { boxServed: false, boxFamily: true, boxCoworker: false, boxOther: false, otherText: '' };
+    }
+    if (rel === 'other') {
+      return { boxServed: false, boxFamily: false, boxCoworker: false, boxOther: true, otherText: relDetail || '' };
+    }
+    return { boxServed: false, boxFamily: false, boxCoworker: false, boxOther: false, otherText: '' };
+  }
+
+  /* Mock of VA Form 21-10210, pre-filled where we can. Production build will
+     use pdf-lib (browser) or FPDI/PDFtk (server) to fill the actual VA PDF.
+     The real field IDs live in the AcroForm and are documented in the BE
+     handoff. */
+  function buildVAFormHTML(block) {
+    const stmt = block.querySelector('.output-text').textContent.trim();
+    const theirName = block.querySelector('.their-name').value.trim() || '[Their Name]';
+    const theirRel = block.querySelector('.their-rel-detail').value.trim();
+    const veteranName = (document.getElementById('veteranName').textContent.trim()) || '[Veteran Name]';
+    const condition = block.dataset.condition || '';
+    const rel = block.dataset.relationship;
+    const cbx = mapRelationshipToVACheckbox(rel, theirRel);
+    const filled = '[filled]';
+    const empty = '[empty]';
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>VA Form 21-10210, Statement from ${theirName}</title>
+      <style>
+        body { font-family: Arial, Helvetica, sans-serif; max-width: 780px; margin: 20px auto; padding: 0 30px; color: #000; line-height: 1.4; font-size: 10pt; }
+        .warn { background: #fff8c4; border: 2px solid #d4a017; padding: 12px 14px; margin-bottom: 18px; font-size: 10pt; }
+        .warn strong { font-weight: bold; }
+        .warn ul { margin: 6px 0 0 20px; padding: 0; }
+        .warn li { margin-bottom: 3px; }
+        .header { border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: flex-start; }
+        .header .agency { font-weight: bold; font-size: 12pt; }
+        .header .omb { font-size: 8pt; text-align: right; }
+        .form-title { text-align: center; font-size: 14pt; font-weight: bold; padding: 6px 0; border-top: 1px solid #000; border-bottom: 1px solid #000; margin-bottom: 14px; }
+        .instructions { font-size: 8.5pt; margin-bottom: 14px; }
+        .section-header { background: #cccccc; padding: 6px 8px; font-weight: bold; font-size: 10pt; text-align: center; margin-top: 14px; margin-bottom: 8px; border: 1px solid #000; }
+        .field-row { display: flex; gap: 0; margin-bottom: 6px; border: 1px solid #000; }
+        .field-cell { padding: 4px 6px; border-right: 1px solid #000; flex: 1; min-height: 30px; }
+        .field-cell:last-child { border-right: none; }
+        .field-label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; margin-bottom: 2px; }
+        .field-value { font-size: 11pt; font-weight: bold; }
+        .filled-cell { background: #e8f5e9; }
+        .empty-cell { background: #fff9c4; }
+        .empty-cell .field-value::before { content: "TO BE COMPLETED BY BUDDY"; color: #b71c1c; font-style: italic; font-size: 9pt; font-weight: normal; }
+        .statement-box { border: 1px solid #000; padding: 10px 12px; min-height: 200px; margin-bottom: 8px; background: #e8f5e9; }
+        .statement-box .label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; margin-bottom: 6px; }
+        .statement-text { font-size: 10.5pt; line-height: 1.55; text-align: justify; white-space: pre-wrap; }
+        .cbx-row { display: flex; gap: 20px; flex-wrap: wrap; margin: 8px 0; padding: 8px 10px; border: 1px solid #000; background: #e8f5e9; }
+        .cbx-item { display: flex; align-items: center; gap: 6px; font-size: 9pt; }
+        .cbx { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #000; text-align: center; line-height: 12px; font-size: 12pt; font-weight: bold; }
+        .cbx.checked::before { content: "X"; }
+        .cbx-other-detail { margin-left: 20px; font-size: 9pt; font-weight: bold; }
+        .sig-row { display: flex; gap: 0; border: 1px solid #000; margin-top: 10px; background: #fff9c4; }
+        .sig-cell { padding: 20px 8px 4px; border-right: 1px solid #000; flex: 1; }
+        .sig-cell:last-child { border-right: none; }
+        .sig-label { font-size: 7.5pt; font-weight: bold; text-transform: uppercase; color: #333; }
+        .sig-note { color: #b71c1c; font-style: italic; font-size: 9pt; }
+        .footer { border-top: 1px solid #000; padding-top: 6px; margin-top: 20px; font-size: 8pt; display: flex; justify-content: space-between; }
+        .page-break { page-break-after: always; }
+        .legend { display: flex; gap: 16px; font-size: 8.5pt; margin: 8px 0 14px; padding: 6px 10px; background: #f5f5f5; border: 1px dashed #999; }
+        .legend .swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid #666; vertical-align: middle; margin-right: 4px; }
+        .legend .swatch.green { background: #e8f5e9; }
+        .legend .swatch.yellow { background: #fff9c4; }
+        @media print { body { margin: 10px auto; } .warn { break-inside: avoid; } }
+      </style></head><body>
+
+      <div class="warn">
+        <strong>Preview of VA Form 21-10210 (Lay/Witness Statement) with what we could pre-fill for you.</strong>
+        <div style="margin-top:6px;">
+          The green fields have been filled from your portal profile and the buddy statement you generated. The yellow fields must be completed by hand by <strong>${escapeHTML(theirName)}</strong> before submitting to the VA:
+        </div>
+        <ul>
+          <li>Section I: Your Social Security Number, VA File Number, Date of Birth, Mailing Address, Phone, Email</li>
+          <li>Section IV (Witness Contact): ${escapeHTML(theirName)}'s Phone Number and Email Address</li>
+          <li>Section V: ${escapeHTML(theirName)}'s Signature and the Date Signed</li>
+        </ul>
+        <div style="margin-top:6px;">
+          Once complete, mail to: <strong>Department of Veterans Affairs, Evidence Intake Center, P.O. Box 4444, Janesville, WI 53547-4444</strong>. This is a preview; the production portal will download the official VA PDF with these same fields pre-filled.
+        </div>
+      </div>
+
+      <div class="legend">
+        <span><span class="swatch green"></span>Pre-filled from portal</span>
+        <span><span class="swatch yellow"></span>To be completed by hand</span>
+      </div>
+
+      <div class="header">
+        <div class="agency">Department of Veterans Affairs</div>
+        <div class="omb">OMB Approved No. 2900-0881<br>Respondent Burden: 10 Minutes<br>Expiration Date: 07/31/2027</div>
+      </div>
+      <div class="form-title">LAY/WITNESS STATEMENT</div>
+      <div class="instructions">
+        <strong>INSTRUCTIONS:</strong> Use this form to submit a statement as a veteran/claimant or someone writing on your behalf to support a claim.
+      </div>
+
+      <div class="section-header">SECTION I: VETERAN'S IDENTIFICATION INFORMATION</div>
+      <div class="field-row">
+        <div class="field-cell filled-cell" style="flex:3;">
+          <div class="field-label">1. Veteran's Name (First, Middle Initial, Last)</div>
+          <div class="field-value">${escapeHTML(veteranName)}</div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-cell empty-cell">
+          <div class="field-label">2. Social Security Number</div>
+          <div class="field-value"></div>
+        </div>
+        <div class="field-cell empty-cell">
+          <div class="field-label">3. VA File Number</div>
+          <div class="field-value"></div>
+        </div>
+        <div class="field-cell empty-cell">
+          <div class="field-label">4. Date of Birth (MM/DD/YYYY)</div>
+          <div class="field-value"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-cell empty-cell">
+          <div class="field-label">5. VA Insurance File Number</div>
+          <div class="field-value"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-cell empty-cell">
+          <div class="field-label">6. Current Mailing Address (Number and Street, City, State, ZIP)</div>
+          <div class="field-value"></div>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field-cell empty-cell">
+          <div class="field-label">7. Telephone Number</div>
+          <div class="field-value"></div>
+        </div>
+        <div class="field-cell empty-cell" style="flex:2;">
+          <div class="field-label">8. E-Mail Address</div>
+          <div class="field-value"></div>
+        </div>
+      </div>
+
+      <div class="section-header">SECTION II: CLAIMANT'S IDENTIFICATION INFORMATION</div>
+      <div class="field-row">
+        <div class="field-cell" style="background:#f5f5f5;">
+          <div class="field-value" style="font-style:italic;color:#555;text-align:center;">Skip this section. Claimant is the veteran (see Section I).</div>
+        </div>
+      </div>
+
+      <div class="page-break"></div>
+
+      <div class="section-header">SECTION III: STATEMENT</div>
+      <div style="font-size:9pt;margin-bottom:6px;"><strong>Claimed issue this statement addresses:</strong> ${escapeHTML(condition || '[Not specified]')}</div>
+      <div class="statement-box">
+        <div class="label">17. Statement (What you know or have observed about facts relevant to this claim)</div>
+        <div class="statement-text">${escapeHTML(stmt)}</div>
+      </div>
+
+      <div class="page-break"></div>
+
+      <div class="section-header">SECTION IV: WITNESS CONTACT INFORMATION</div>
+      <div class="field-row">
+        <div class="field-cell filled-cell">
+          <div class="field-label">18. Witness Name (First, Middle Initial, Last)</div>
+          <div class="field-value">${escapeHTML(theirName)}</div>
+        </div>
+      </div>
+      <div style="font-size:8pt;font-weight:bold;text-transform:uppercase;color:#333;margin-top:10px;margin-bottom:4px;">19. Relationship to Veteran/Claimant (Check all that apply)</div>
+      <div class="cbx-row">
+        <div class="cbx-item"><span class="cbx ${cbx.boxServed ? 'checked' : ''}"></span>Served with Veteran/Claimant</div>
+        <div class="cbx-item"><span class="cbx ${cbx.boxFamily ? 'checked' : ''}"></span>Family/Friend of Veteran/Claimant</div>
+        <div class="cbx-item"><span class="cbx ${cbx.boxCoworker ? 'checked' : ''}"></span>Coworker/Supervisor of Veteran/Claimant</div>
+        <div class="cbx-item"><span class="cbx ${cbx.boxOther ? 'checked' : ''}"></span>Other (Specify): ${cbx.boxOther ? '<span class="cbx-other-detail">' + escapeHTML(cbx.otherText) + '</span>' : ''}</div>
+      </div>
+      <div class="field-row">
+        <div class="field-cell empty-cell">
+          <div class="field-label">20. Telephone Number</div>
+          <div class="field-value"></div>
+        </div>
+        <div class="field-cell empty-cell" style="flex:2;">
+          <div class="field-label">21. E-Mail Address</div>
+          <div class="field-value"></div>
+        </div>
+      </div>
+
+      <div class="section-header">SECTION V: CERTIFICATION OF STATEMENT AND SIGNATURE</div>
+      <div style="font-size:9pt;margin-bottom:6px;font-style:italic;">
+        I CERTIFY THAT I have completed this statement and that its information is true and correct to the best of my knowledge and belief.
+      </div>
+      <div class="sig-row">
+        <div class="sig-cell" style="flex:2;">
+          <div class="sig-label">22A. Witness Signature (REQUIRED)</div>
+          <div class="sig-note">Sign here by hand</div>
+        </div>
+        <div class="sig-cell">
+          <div class="sig-label">22B. Date Signed (MM/DD/YYYY)</div>
+          <div class="sig-note">Fill in date of signing</div>
+        </div>
+      </div>
+
+      <div class="footer">
+        <span>VA FORM 21-10210 (JUL 2024)</span>
+        <span>Statement generated ${new Date().toLocaleDateString('en-US')}</span>
+      </div>
+
+      </body></html>`;
+  }
+
+  function buildDownloadHTML(block) {
+    const stmt = block.querySelector('.output-text').textContent.trim();
+    const theirName = block.querySelector('.their-name').value.trim() || '[Their Name]';
+    const theirRel = block.querySelector('.their-rel-detail').value.trim();
+    const veteranName = (document.getElementById('veteranName').textContent.trim()) || '[Veteran Name]';
+    const condition = block.dataset.condition || '';
+    const regarding = condition ? `VA Disability Claim, ${condition}` : 'VA Disability Claim';
+    const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Statement from ${theirName} for ${veteranName}</title>
+      <style>
+        body { font-family: 'Times New Roman', Times, serif; max-width: 700px; margin: 40px auto; padding: 0 40px; color: #000; line-height: 1.7; font-size: 12pt; }
+        .title-block { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 16px; }
+        h1 { font-size: 15pt; margin: 0 0 6px; letter-spacing: 0.5px; font-weight: bold; }
+        .for-line { font-size: 13pt; margin: 0; }
+        .meta { margin-bottom: 24px; font-size: 11pt; }
+        .meta div { margin-bottom: 4px; }
+        .salutation { margin: 24px 0 16px; font-size: 12pt; }
+        .statement { margin: 16px 0 30px; text-align: justify; }
+        .certification { margin-top: 30px; font-size: 12pt; font-style: italic; }
+        .contact-offer { margin-top: 20px; font-size: 12pt; }
+        .signature-block { margin-top: 40px; }
+        .sig-line { border-top: 1px solid #000; width: 320px; margin-top: 40px; padding-top: 4px; font-size: 10pt; }
+        @media print { body { margin: 20px auto; } }
+      </style></head><body>
+      <div class="title-block">
+        <h1>Statement from ${escapeHTML(theirName)}</h1>
+        <p class="for-line">for ${escapeHTML(veteranName)}</p>
+      </div>
+      <div class="meta">
+        <div><strong>Relationship to Veteran:</strong> ${escapeHTML(theirRel)}</div>
+        <div><strong>Date:</strong> ${today}</div>
+        <div><strong>Regarding:</strong> ${escapeHTML(regarding)}</div>
+      </div>
+      <div class="salutation">To whom it may concern:</div>
+      <div class="statement">${escapeHTML(stmt).replace(/\n/g, '<br><br>')}</div>
+      <div class="certification">
+        I, ${escapeHTML(theirName)}, certify that the statements above are true and correct to the best of my knowledge and belief.
+      </div>
+      <div class="contact-offer">
+        If you have any further questions, please do not hesitate to contact me at any time.
+      </div>
+      <div class="signature-block">
+        <div class="sig-line">Name</div>
+        <div class="sig-line">Date</div>
+      </div>
+      </body></html>`;
+  }
+
+  function escapeHTML(s) {
+    return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /* ============================================================
+     PROTOTYPE-ONLY BUDDY STATEMENT SAMPLES
+     Real endpoint (Claude Sonnet 4.6) will generate from actual inputs.
+     Samples show realistic voice, structure, and ~1000 char target.
+     ============================================================ */
+
+  const BUDDY_SAMPLES = {
+    family: {
+      event: [
+        `My name is [name]. I am [relationship] to [John Miller], and I write this statement in support of his claim for service-connected traumatic brain injury. I was present at Landstuhl Regional Medical Center in Germany on March 8, 2007, when [he] was flown in from Iraq after his IED strike. The military family liaison called me the day before to say [he] had been wounded, and I flew from the States within 12 hours. When they wheeled [him] past me on the gurney, [he] did not recognize me at first. The neurosurgeon explained the head trauma [he] had suffered and warned us the recovery would take years, not months. I stayed with [him] through the first three weeks of rehabilitation. I watched [him] struggle to remember our children's names, what year it was, and how to hold a fork. Simple sentences would trail off mid-thought. [He] would ask me the same question five times in an hour. Since coming home in April 2007, [he] has never fully recovered from that TBI. [He] forgets conversations we had the day before. [He] gets lost in our own neighborhood at least once a month. Loud noises still make [him] flinch violently. I write this so the VA understands that what happened on that patrol did not stay in Iraq. It came home with [him], and our whole family has lived with it every day for the past 18 years.`,
+        `My name is [name]. I am [relationship] to [John Miller]. I write this in support of [his] back injury claim. I was visiting the base at Fort Bragg, North Carolina, the weekend of the training accident in March 2009. On the afternoon of March 14, 2009, I was in the family housing area when the base sirens went off. I was one of the first family members allowed to the medical clinic approximately two hours later. The battalion aid station corpsman told me [he] had fallen 22 feet from the rappelling tower during air assault training and struck [his] back on the way down. The Army doctor explained the compression fracture at L4-L5 would heal but warned that the nerve damage might be permanent. I stayed with [him] through the first week of rehabilitation and watched [him] fight to relearn how to stand for long periods. [He] needed help getting to the bathroom for the first four days. Physical therapy took eight months. In the years since that fall, that back injury has defined [his] life. [He] cannot sit through a two-hour movie. [He] cannot lift [his] own children over 30 pounds. [He] takes prescription pain medication every day just to work an eight-hour shift. Two separate orthopedic surgeons have told [him] surgery would be too risky given the location of the fracture. I saw the injury when it happened, and I have seen every year of the consequences since. I write this because I know exactly where this began.`,
+      ],
+      impact: [
+        `My name is [name] and I am [relationship] to [John Miller]. I write this statement in support of his claim for service-connected PTSD. I have known [him] since 1998 and married him in 2003, before his first deployment. [He] returned from his second tour in Afghanistan in December 2011, and the person who came home was not the person I sent off. Since December 2011, [he] has woken up screaming most nights, drenched in sweat, unable to get back to sleep. [He] avoids fireworks, crowded restaurants, and any place with unpredictable noise. Our three children, ages 8, 11, and 14, have learned not to approach [him] from behind because [he] will flinch or strike out without thinking. On July 4, 2023, [he] locked himself in the bedroom with noise-canceling headphones for six hours because the fireworks in our neighborhood were too much. [He] used to be the life of every family gathering; now [he] sits in the corner or leaves early. I have watched [him] cycle through three different antidepressants, weekly therapy at the local VA, and countless coping strategies, but the anxiety and hypervigilance never fully leave [him]. [He] has missed our daughter's dance recital, his own birthday dinner, and my father's funeral because [he] could not face crowds those days. This is not the person I married, but I love the person I have. I write this so the VA can see what our family has lived with every day for the past 14 years.`,
+        `My name is [name] and I am [relationship] to [John Miller]. I write this in support of his back injury claim. Growing up in the 1990s, [John] was the athlete of the family. He played varsity baseball at Ridgeview High School from 1998 to 2002, ran track, and hiked the Appalachian Trail with me in the summer of 2003 before enlisting. After his second tour with the 82nd Airborne in Afghanistan, ending in October 2014, everything changed. [He] came home with lower back pain that never went away. I have watched [him] struggle to lift his own children over 20 pounds, cancel our family camping trips because [he] cannot sleep on the ground anymore, and take prescription pain medication just to make it through a workday. [He] turned down our family reunion in July 2019 because the six-hour drive was too much for [his] back. Last Thanksgiving [he] had to lie down on the family room floor between courses because sitting through dinner had become too painful. This is a person who used to run marathons; his last one was the Marine Corps Marathon in 2012. What [he] lives with now is a fraction of the life [he] had before service. His orthopedic surgeon at the Denver VA has told him he will likely need spinal fusion within the next five years. I am writing this so the VA understands the full picture of what [he] lost.`,
+      ],
+      both: [
+        `My name is [name] and I am [relationship] to [John Miller]. I write this in support of his PTSD claim. I was at Norfolk Naval Station on June 18, 2007, the day [he] came home from his deployment to Iraq, and I could see it in [his] eyes before [he] even reached me on the pier. Something in [him] had broken during that year in Ramadi. That first night home, [he] sat up until 3 AM staring out the window of our apartment and would not tell me what [he] was watching for. That was a preview of what was coming. Since June 2007, I have lived with the aftermath every single day. [He] cannot sleep through a full night without waking at least twice. [He] jumps at car doors slamming, at neighbors closing their garage. [He] has walked out of restaurants in the middle of meals because a stranger sat too close behind [him]. I have watched [him] miss school events for our two children, cancel vacations because [he] could not face the crowds at the airport, and pull away from [his] closest friends from before service. Last Fourth of July, [he] locked himself in the bedroom with headphones on for six hours because the fireworks in our neighborhood were too much. [He] is on daily sertraline and prazosin, and sees a therapist at the VA every two weeks, but nothing has restored what came home damaged. The person who came home in June 2007 is not the same person who left.`,
+      ],
+    },
+    friend: {
+      event: [
+        `My name is [name]. I have been [relationship] to [John Miller] for over 20 years, since we met in ninth grade at Central High School in 2001. I write this in support of his claim for service-connected PTSD. I was with [him] the weekend [he] returned from [his] first deployment to Iraq, on Memorial Day weekend 2005. What I saw shook me. [He] flinched at every car door slamming. [He] could not sit with [his] back to a room; at the restaurant that Saturday night [he] insisted we switch tables so [he] could face the door. When a waitress dropped a serving tray at 8:15 PM that evening, [he] was on the floor before the rest of us had processed the sound. [He] apologized to us on the way out but I could see [he] was rattled for the rest of the evening. Over the 20 years since, that hypervigilance has never left [him]. I have watched [him] scan every parking lot before we get out of the car. I have watched [him] leave three of my birthday parties early because the noise got to be too much. Last year, at a friend's wedding reception, [he] excused himself after 40 minutes and waited in the parking lot until it was time to leave. I write this because I was one of the first civilians to see what came home with [him] in May 2005, and I want the VA to understand this did not develop later or worsen from civilian life. It was there the moment [his] boots hit American soil, and it has been there every day for the past 20 years.`,
+        `My name is [name]. I have been [relationship] to [John Miller] for over 30 years, since we met in seventh grade at Roosevelt Middle School in Denver, Colorado, in 1994. I write this in support of his claim for service-connected PTSD. I picked [him] up from Denver International Airport when [he] came back from Afghanistan on August 17, 2011, and I have never forgotten that drive home. [He] sat rigid in the passenger seat the whole way, watching the side mirrors every few seconds. When I stopped at a red light on Peña Boulevard about 20 minutes into the drive, a beat-up sedan pulled up next to us and [he] gripped the door handle so hard the plastic creaked. I asked [him] if [he] was all right and [he] told me to just get [him] home. That was the first time I understood something was different. Over the following months, I watched [him] withdraw from our friend group of six guys we had known since middle school, cancel [his] engagement to his girlfriend in October 2011, and quit the software engineering job [he] had held at Lockheed since 2007. [He] has held three jobs in the 14 years since and none longer than 18 months. I have known [him] most of my life, and I know what came back from that tour was not the person who left in 2010. I write this because I saw it from day one.`,
+      ],
+      impact: [
+        `My name is [name] and I have been [relationship] to [John Miller] for over 25 years, since long before [he] enlisted in the Marine Corps in 2003. I write this in support of his physical and mental health claims. I know [his] humor, [his] energy, [his] way of turning any bad situation into a joke. That person came back from service diminished. Since his return in 2007, [he] does not laugh the way [he] used to. [He] cancels plans at the last minute more often than not, usually because of back pain or exhaustion. [He] has stopped showing up to our monthly poker night, which we had held on the first Saturday of every month since 2000, because [he] cannot sit for more than 30 minutes without needing to move. Last April [he] missed [his] own 40th birthday party at [his] house because [he] locked [himself] in [his] bedroom with a migraine that lasted two days. I brought over a plate of food that Saturday and could hear [him] pacing back and forth even at midnight. I have watched [him] withdraw from the people who love [him] the most over the past 18 years. His wife has told me privately that most nights he does not sleep more than four hours. I write this because I have known [him] longer than most people in [his] adult life, and I can testify to how much of [his] former self [he] has lost. This is not the [John] who was best man at my wedding in 2006. That person is gone.`,
+        `My name is [name] and I have been [relationship] to [John Miller] for 15 years. We have been neighbors on Elm Street in Boulder, Colorado, since 2010, and I have known [him] since [his] children were small. I write this in support of his back and PTSD claims. Before [he] deployed to Afghanistan in 2011, [he] was the neighborhood dad who organized the annual block party on Labor Day, helped everyone with home repairs on weekends, and coached the neighborhood soccer team for kids ages 6-8. After [he] came home from [his] second tour in November 2013, that person disappeared piece by piece. [He] stopped coming to gatherings after 2014. [His] front lawn went uncared for, and by summer 2015 my wife and I started mowing it for him while he was on flare-ups. When I ran into [him] at the mailbox, [he] would offer a brief hello and go back inside. [His] wife told me later that [he] could barely function on the days [his] back was flared up, which was most days. I have watched [his] two children grow up around a father who is present but not really there. His oldest is now 16, and I have never once seen her father throw a baseball with her the way he did with the neighborhood kids in 2010. I write this so someone outside [his] household can confirm what [his] family already knows. The person who lived on this block in 2010 is not the person who lives here now.`,
+      ],
+      both: [
+        `My name is [name] and I have been [relationship] to [John Miller] for over 20 years. I write this in support of his back injury claim. I visited [him] at Fort Bragg, North Carolina, in July 2009, four months after [his] training accident on the rappelling tower. [He] was still on prescription pain medication and wearing a back brace, but insisted on hosting me anyway. That was [him], always pushing through. That weekend I watched [him] try to hide the pain when [he] stood up from the couch after every 15 minutes. I watched [him] cut our fishing trip short after two hours because [he] needed to lie down flat on the ground. In the 15 years since separation, I have watched [him] push through less and less. The pain won. [He] cannot do the things we used to do together: hiking Colorado 14ers, road biking on weekends, the annual elk hunt in November. Even simple visits are shorter now because [he] tires out. Last summer, in June 2024, we tried to do our traditional Colorado River fishing trip and [he] had to leave after the first day because [his] back locked up on the drive there. This is a person who used to disappear into the mountains for a week at a time with a 60-pound pack. Now [he] cannot carry his own daypack on a two-mile trail. I write this because I saw the injury when it was fresh in July 2009, and I have watched every year of the decline since.`,
+      ],
+    },
+    buddy: {
+      event: [
+        `My name is [name]. I served in the US Marine Corps from January 2003 to June 2007 and was assigned to Weapons Company, 2nd Battalion, 5th Marines out of Camp Pendleton, California. I served alongside [John Miller] in our infantry platoon during our deployment to Fallujah, Iraq, from August 2004 through March 2005. I write this in support of his claim for service-connected traumatic brain injury. On November 12, 2004, at approximately 1430 hours, our platoon was conducting a mounted patrol in the western district of Fallujah when [John]'s Humvee, three vehicles ahead of mine, struck an improvised explosive device buried in the roadway. I was one of the first Marines to reach the vehicle after the blast. I found [John] unconscious in the turret position, with visible head trauma, blood coming from his ears, and shrapnel wounds to his upper body. Along with two other Marines from our platoon, I helped extract [him] from the vehicle and load [him] onto the medevac helicopter within eight minutes of the strike. I saw the physical injuries firsthand and I know exactly what happened that afternoon. I have stayed in touch with [John] since separation in 2007. What came home from that patrol is not the same person who deployed with me. [He] suffers from severe migraines that put [him] in a dark room for days at a time. [He] forgets conversations from earlier the same day. [He] loses [his] train of thought mid-sentence in ways [he] never did before that IED. I write this because I know what I saw on November 12, 2004, and I know what [he] carries every day since.`,
+        `My name is [name]. I served in the US Army from June 2005 to March 2011 as an infantryman with 1st Battalion, 502nd Infantry Regiment, 101st Airborne Division out of Fort Campbell, Kentucky. I served alongside [John Miller] in the same platoon during our 2007 deployment to Iraq. I write this in support of his hearing loss, tinnitus, and TBI claim. On the night of October 3, 2007, at approximately 2245 hours, our forward operating base south of Baqubah came under sustained mortar fire. [John] was standing approximately 15 feet from the impact point when the 82mm round landed. I was in the same bunker complex approximately 40 feet away. I watched [him] get thrown against the sandbags and I was one of the first to help drag [him] out afterward. [He] was bleeding from [his] ears and disoriented for hours. The battalion aid station medics evaluated [him] and cleared [him] to stay in country, but I could see [he] was not right after that night. [His] hearing was clearly damaged; I had to repeat myself constantly for the rest of the deployment. [He] jumped at every sound for the next four months in country. When we came home in February 2008, we lost touch for a few years until we ran into each other at our unit reunion at Fort Campbell in June 2015. I could still see it in [him] then. [His] hearing had gotten worse. [He] admitted to me that [he] had never fully reported the exposure because none of us did back then. I write this because someone needs to say what happened that night in October 2007.`,
+      ],
+      impact: [
+        `My name is [name] and I served in the US Marine Corps from August 2002 to July 2008 with 3rd Battalion, 7th Marines. I served alongside [John Miller] in the same infantry unit during our two deployments to Iraq (Fallujah in 2004, and Ramadi in 2006). I write this in support of his back injury and PTSD claims. I have known [him] since basic training at Parris Island in November 2002 and have stayed in touch every year since separation in July 2008. The Marine I served with was sharp, quick, and one of the most reliable riflemen in our squad. Since coming home in July 2008, [he] is not the same. [He] cannot hold down steady work because [his] back gives out; [he] has been through five jobs since separation, none lasting more than 18 months. [He] talks about our deployments less each year, not more, and I know why. It is because talking about them costs [him] sleep for a week. When we get together, I watch [him] scan every room [he] walks into for exits. I see [him] tense when children run past. Last time I visited [him] in Denver in September 2024, [he] apologized because [he] had to end the visit after 90 minutes to take prescription pain medication that would put [him] out for the rest of the day. I know this person before service and this person after, and I write this because the difference is real, it is service-connected, and it is not getting better.`,
+        `My name is [name] and I served in the US Army with 173rd Airborne Brigade Combat Team out of Vicenza, Italy, from March 2010 to April 2014. I served alongside [John Miller] in the same platoon during our deployment to Afghanistan from May 2011 to May 2012. We were battle buddies for twelve months in country and have stayed close since separation. I write this in support of his back and mental health claims. I have watched [him] fight the invisible war ever since we came home. [He] came out of the Army with a back injury from carrying 80+ pound rucksacks and body armor on daily foot patrols in Kunar Province, and a mind that would not stop running. [He] has been through three jobs in five years since separation, not because [he] does not work hard, but because [he] cannot sit for eight hours without pain and [he] cannot manage the anxiety in team meetings. [He] and I have talked about it late at night when neither of us could sleep. On more than one occasion, [he] has called me at 2 AM asking me to talk him through a panic attack. Last month, [he] called me to say [his] wife of six years had asked for a separation because [he] cannot connect emotionally the way [he] used to. I know what a good soldier looks like because [he] was one, and I know what the aftermath of service looks like because I have watched [him] live it. I write this from one paratrooper to another, so the VA understands what my friend carries.`,
+      ],
+      both: [
+        `My name is [name] and I served in the US Army with 2nd Battalion, 503rd Infantry Regiment (Airborne) from July 2009 to August 2014. I served alongside [John Miller] during our deployment to Afghanistan from May 2011 to April 2012. I write this in support of his physical and mental health claims. I was in the vehicle behind [him] on April 8, 2012, when our platoon came under sustained small arms and RPG fire in the Korengal Valley of Kunar Province. I personally witnessed [him] take shrapnel to the right leg from an RPG detonation and continue to return fire until we could extract to Combat Outpost Restrepo. That was the paratrooper [he] was in combat. That day, once we got back to base, I helped the medics field-dress the leg wound while [he] refused to lie down until [he] had personally checked on every other soldier in our fire team. I have stayed close to [him] in the 12 years since we returned. The physical injury to his right leg never fully healed; he walks with a noticeable limp on cold mornings and cannot run more than a quarter mile. But the harder change has been mental. [He] does not sleep more than four hours a night. [He] drinks more than [he] should, and has told me privately he averages six beers a night just to fall asleep. [He] has lost two jobs since separation to [his] temper. Last year [he] called me at 2 AM twice in one month, unable to sleep and needing to talk to someone who understood. I served with [him] in the worst place I have ever been, and I have watched [him] fight a slower war ever since April 2012. I write this so the VA understands the full price [he] paid.`,
+      ],
+    },
+    officer: {
+      event: [
+        `My name is [name]. I was [John Miller]'s platoon commander during our 2005 deployment to Ramadi, Iraq, with 2nd Battalion, 5th Marines. I served in the US Marine Corps from May 2001 to August 2010, separating at the rank of Captain. I write this statement in support of [his] claim for service-connected TBI, PTSD, and hearing loss. On the morning of March 14, 2005, at approximately 0730 hours, our platoon on mounted patrol was struck by a coordinated IED and small arms attack in the Al-Anbar province, approximately 15 kilometers northwest of central Ramadi. I personally witnessed [John] pull two wounded Marines to cover under sustained small arms fire before being knocked unconscious by a secondary IED blast. I wrote [him] up for a Bronze Star with Valor device for that action; the award was approved and presented at Camp Pendleton in November 2005. I also personally observed the head injury [he] sustained and the medical evaluation that followed at the Camp Ramadi aid station. [He] was returned to duty within a week, but the Marine who came back to the platoon was not the same. [His] reaction time was noticeably slower. [He] complained of headaches [he] tried to hide from the corpsmen. In [his] final performance evaluation before separation in July 2007, I noted concerns about ongoing symptoms consistent with the TBI [he] sustained that day. I write this statement as [his] former commanding officer and as someone who knows what happened that morning in March 2005 and what it cost [him]. The VA has my full contact information on file if any additional verification is required.`,
+      ],
+      impact: [
+        `My name is [name] and I was [John Miller]'s squad leader for four years, including our deployment to Kandahar, Afghanistan, from June 2010 through May 2011 with 4th Brigade Combat Team, 82nd Airborne Division. I served in the US Army from July 1998 to October 2014, separating at the rank of Sergeant First Class. I write this statement in support of his physical and mental health claims. I have kept in professional contact with [him] since [his] separation in September 2012. As a former senior NCO, I know what a squared-away paratrooper looks like, and [John] was one of the best under my command. His NCOERs consistently ranked him in the top 10% of his cohort. In the years since separation, I have watched [his] condition erode significantly. When we last met at our unit reunion at Fort Bragg in October 2024, [he] could not sit through the dinner without needing to step outside three separate times. [He] pulled me aside to apologize afterward, told me the noise was overwhelming and the crowd was too much. At the same reunion, I noticed [he] had lost significant weight from what I remembered and looked exhausted. Two of the other NCOs in attendance mentioned to me privately that they had observed the same decline. This is a paratrooper who led fire teams into contact in Kandahar Province with a steady voice. I write this because I have known [him] as [he] was, and I know what [he] has become. The change is service-connected. I have no doubt.`,
+      ],
+      both: [
+        `My name is [name] and I served as [John Miller]'s company commander during our 2003 deployment to Iraq with 3rd Infantry Division from March 2003 to July 2003. I served in the US Army from May 1992 to June 2015, separating at the rank of Lieutenant Colonel. I write this statement in support of his claim for service-connected TBI and hearing loss. I personally witnessed the incident on June 8, 2003, at approximately 2115 hours, in which our company command post south of Baghdad came under sustained mortar and rocket fire and [John] sustained the injuries [he] is now claiming. I completed the initial casualty report myself on June 9, 2003, and can produce a certified copy on request through the Army Human Resources Command. In the two decades since, I have stayed in touch with several members of my former command through our unit association. What I have seen in [John] over the years matches every combat veteran I have known who came home carrying that kind of exposure. When I visited [his] home in Colorado Springs in April 2018, I watched [him] struggle to make it through a two-hour dinner without excusing [himself] to walk outside four separate times. [His] wife pulled me aside afterward to tell me what daily life had become for their family. As a former officer with combat command experience, I write this both as an eyewitness to the events themselves and as someone who has watched the long consequences unfold over 22 years. My contact information is on file with the local VA if additional verification is required.`,
+      ],
+    },
+    other: {
+      event: [
+        `My name is [name]. I am [relationship] to [John Miller], and I write this statement in support of his claim for service-connected PTSD. I was present on the evening of September 22, 2005, when [he] came to me after the incident during [his] deployment to Iraq that [he] now claims. I remember that evening clearly. [He] arrived at my home at approximately 2000 hours, unannounced and visibly shaken in a way I had never seen before or since. Over the next four hours, [he] described what had happened during a patrol earlier that week and asked me to keep it in confidence at the time, which I did for the following 18 years. That night I sat with [him] for hours while [he] processed what had occurred; [he] wept intermittently and was unable to complete some of what [he] was describing. [He] barely slept afterward and asked to spend the following night with my family rather than return to base alone. That is not the kind of accommodation [he] would have asked for lightly, and it stood out to me at the time and still stands out to me now. I am now writing this statement with [his] express permission, given in writing in June 2024, so the VA can hear from someone who was there when the raw impact of the event first surfaced in September 2005. This was not a story constructed later. This was a person in immediate distress the day it happened, and I have thought about that night many times in the 20 years since.`,
+      ],
+      impact: [
+        `My name is [name] and I am [relationship] to [John Miller]. I have known [him] in this capacity since March 2013. I write this statement in support of his physical and mental health claims. In my role, I have observed [him] struggle with issues that clearly trace back to his military service. Over the past 12 years, I have watched [him] cycle through five professional positions, each one ending because [he] could not sustain the physical demands of standing for long periods or the interpersonal pressure of team environments. [He] has been unable to hold steady work for longer than 22 months at any position since I have known him. [He] misses appointments and commitments not out of carelessness but because of the physical pain and anxiety symptoms he carries daily. [He] has confided in me during particularly hard weeks. In one of our most recent conversations, in August 2024, [he] told me [he] does not sleep more than four hours a night and has not for over a decade. [He] has told me [he] avoids family events, including his own children's school functions, because the anticipation triggers panic attacks that leave him unable to function for the following 24 hours. I have offered what support I can, but the underlying cause is beyond what someone in my position can address. I write this so the VA understands there are people outside [his] family and outside [his] military circle who have observed the impact of these conditions on [his] daily functioning consistently over more than a decade, and who can attest that the pattern is consistent, unrelenting, and service-connected.`,
+      ],
+      both: [
+        `My name is [name] and I am [relationship] to [John Miller]. I have known [him] for over 12 years, since we first met in a professional capacity in March 2013. I write this statement in support of his physical and mental health claims. I was present in June 2013, shortly after the incident during [his] service that [he] now claims occurred, when [he] first disclosed to me what had happened. I saw [his] condition in the months following that disclosure, and I have watched [him] navigate the consequences in the twelve years since. The change from what [he] was capable of before this event to what [he] is capable of now was and remains stark. When I first met [him] in March 2013, [he] was engaged to be married, animated in conversation, and forward-looking about his post-service career. In the aftermath of what [he] disclosed to me in June 2013, I watched [him] withdraw noticeably. His engagement ended in October 2013. Over the twelve years since, I have continued to see [him] regularly, at least monthly, and the withdrawal has never reversed. [He] avoids the professional networking settings [he] used to enjoy. [He] has told me repeatedly, most recently in September 2024, that [he] cannot maintain the concentration required for the work [he] used to do without significant difficulty; [he] now works part-time in a role that requires less cognitive load. I write this as someone outside [his] military circle and outside [his] family, in the hope that a third-party perspective from someone who has known [him] for over a decade adds weight to what those closer to [him] have also observed. Both the origin and the ongoing impact are things I have seen directly and can attest to.`,
+      ],
+    },
+  };
+
+  function fakeBuddyDraft(rel, theirName, theirRel, witnessEvent, witnessImpact, eventData, impactData, attemptIdx, feedback) {
+    // Determine which key to use
+    let key = 'impact';
+    if (witnessEvent && witnessImpact) key = 'both';
+    else if (witnessEvent) key = 'event';
+    else key = 'impact';
+
+    const samples = (BUDDY_SAMPLES[rel] && BUDDY_SAMPLES[rel][key]) ? BUDDY_SAMPLES[rel][key] : BUDDY_SAMPLES.other.impact;
+    const idx = attemptIdx % samples.length;
+    let base = samples[idx];
+
+    // Substitute placeholders
+    base = base.replace(/\[name\]/g, theirName || '[Veteran Name]');
+    base = base.replace(/\[relationship\]/g, theirRel || '[relationship]');
+    base = base.replace(/\[John\]/g, theirName || '[Veteran Name]');
+
+    // Apply fake feedback if provided
+    if (feedback && attemptIdx > 0) {
+      base = applyBuddyFeedback(base, feedback);
+    }
+
+    // Character cap safety
+    if (base.length > HARD_CAP) {
+      base = base.substring(0, HARD_CAP - 3).replace(/\s\S*$/, '') + '.';
+    }
+    return base;
+  }
+
+  function applyBuddyFeedback(stmt, feedback) {
+    const fb = feedback.toLowerCase();
+    if (fb.includes('more emotional') || fb.includes('emotion')) {
+      stmt = stmt.replace(/I write this /, 'I am writing this with tears in my eyes because ').replace(/I write this /g, 'I write this ');
+    } else if (fb.includes('shorter') || fb.includes('cut')) {
+      const parts = stmt.split(/(?<=\.)\s+/);
+      if (parts.length > 3) { parts.splice(Math.floor(parts.length / 2), 1); stmt = parts.join(' '); }
+    } else if (fb.includes('less emotional') || fb.includes('more factual')) {
+      stmt = stmt.replace(/deeply|truly|profoundly/g, '');
+    } else if (fb.includes('date') || fb.includes('year')) {
+      // Note: real regen would incorporate the date, prototype just acknowledges
+      stmt = stmt.replace(/\.\s*$/, '. Specific dates and details are noted above.');
+    } else {
+      // Generic tweak: add a closing sentence about ongoing impact
+      const closer = ' What I have written here does not capture everything, but it is what I know to be true.';
+      if (stmt.length + closer.length <= HARD_CAP) stmt = stmt.replace(/\.\s*$/, '.') + closer;
+    }
+    return stmt;
+  }
+</script>
+
+</body>
+</html>

@@ -17,6 +17,7 @@ import MondayBoardsAdminPage from './views/MondayBoardsAdminPage.vue'
 // host instead of this app's Tailwind styling) ships only in this route's
 // chunk, not the main bundle.
 const VetCommStatementPage = () => import('./views/VetCommStatementPage.vue')
+const BuddyStatementPage = () => import('./views/BuddyStatementPage.vue')
 
 const routes = [
   { path: '/', name: 'Home', component: Home },
@@ -41,6 +42,7 @@ const routes = [
   // Not linked from any nav — reachable only via direct URL. Iframed into
   // LightSpeed VT, so it renders without the app sidebar (see meta.chromeless).
   { path: '/vetcomm/statements', name: 'VetCommStatements', component: VetCommStatementPage, meta: { chromeless: true } },
+  { path: '/vetcomm/buddy-statements', name: 'VetCommBuddyStatements', component: BuddyStatementPage, meta: { chromeless: true } },
 
   { path: '/scan', redirect: () => ({ path: '/courseware-tools/scan' }) },
   { path: '/link-builder', redirect: () => ({ path: '/integration-tools/link-builder' }) },
