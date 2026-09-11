@@ -14,8 +14,8 @@ POST {base_url}/api/v1/buddy-statements/generate
 
 | Environment | `base_url` |
 |-------------|----------------------|
-| Staging | `https://stage-portal.vetcomm.link` |
-| Production | `https://portal.vetcomm.org` |
+| Staging     | `https://stage-portal.vetcomm.link` |
+| Production  | `https://portal.vetcomm.org` |
 
 Authentication, HMAC signing, and rate limits are **identical** to the personal statement API. See [lms-statement-api.md](./lms-statement-api.md).
 

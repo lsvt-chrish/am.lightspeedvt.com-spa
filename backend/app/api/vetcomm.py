@@ -12,7 +12,13 @@ from pydantic import BaseModel, Field, model_validator
 from app.lightspeed_lookup_api import get_user_name
 from app.va_form_filler import fill_va_form
 from app.vetcomm_api import VetCommError, generate_buddy_statement, generate_statement
-from app.vetcomm_statements_api import VetCommStatementsError, get_statements, submit_statement
+from app.vetcomm_statements_api import (
+    VetCommStatementsError,
+    get_buddy_statements,
+    get_statements,
+    submit_buddy_statement,
+    submit_statement,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -206,9 +212,11 @@ async def veteran_name(user_id: str):
 
 
 # ---------------------------------------------------------------------------
-# Buddy (lay/witness) statements -- see docs/vetcomm-buddy-statement-api.md.
-# Separate endpoint from personal statements above: longer, written in the
-# witness's voice, and (per that doc) never stored -- no save/resume here.
+# Buddy (lay/witness) statements -- see docs/vetcomm/vetcomm-buddy-statement-api.md.
+# Separate endpoint from personal statements above: longer, and written in the
+# witness's voice. VetComm's *generation* API stores nothing (same as personal
+# statements); save/resume below goes through our own statements ingest API,
+# mirroring the personal statement flow.
 # ---------------------------------------------------------------------------
 
 BuddyRelationship = Literal["family", "friend", "buddy", "officer", "other"]
@@ -294,6 +302,108 @@ async def create_buddy_statement(payload: BuddyStatementRequest):
         "character_count": result.get("character_count"),
         "attempt_number": result.get("attempt_number"),
     }
+
+
+class SavedBuddyStatement(BaseModel):
+    user_id: str
+    generated_at: datetime
+    # The exact request sent to VetComm's /buddy-statements/generate for this
+    # statement, so the full interaction (inputs + output) is stored together
+    # rather than just the final text -- and so the form block can be rebuilt
+    # field-for-field on resume. Same approach as SavedStatement above.
+    request: BuddyStatementRequest
+    statement: str
+    character_count: int
+    attempt_number: int
+
+
+@router.post("/buddy-statements/save")
+async def save_buddy_statement(payload: SavedBuddyStatement):
+    """
+    Persists one generated buddy statement (plus the request that produced
+    it) via the statements ingest API, so the veteran can come back later
+    instead of losing everything on refresh.
+
+    Uses EXAMPLE/PLACEHOLDER upstream endpoints -- see the note above
+    submit_buddy_statement in vetcomm_statements_api.py.
+    """
+    # Deterministic per (user, witness, attempt, statement) so a retried
+    # "Save" click is idempotent server-side rather than creating a duplicate.
+    # Unlike personal statements a veteran has up to 5 buddy statements at
+    # once, so the witness has to be part of the key -- otherwise two
+    # different witnesses saved at the same attempt number would collide.
+    witness = payload.request.witness
+    witness_hash = hashlib.sha256(witness.name.strip().lower().encode()).hexdigest()[:12]
+    statement_hash = hashlib.sha256(payload.statement.encode()).hexdigest()[:16]
+    idempotency_key = (
+        f"user-{payload.user_id}-buddy-{witness_hash}"
+        f"-attempt-{payload.attempt_number}-{statement_hash}"
+    )
+
+    try:
+        result = await submit_buddy_statement(
+            user_id=payload.user_id,
+            statement=payload.statement,
+            idempotency_key=idempotency_key,
+            generated_at=payload.generated_at.isoformat(),
+            condition_name=payload.request.condition.name,
+            condition_category=payload.request.condition.category,
+            witness_name=witness.name,
+            witness_relationship=witness.relationship,
+            attempt_number=payload.attempt_number,
+            character_count=payload.character_count,
+            request=payload.request.model_dump(),
+        )
+    except VetCommStatementsError as e:
+        raise HTTPException(
+            status_code=e.status_code if e.status_code in (400, 401, 404, 413, 422) else 502,
+            detail={"code": e.code, "message": e.message, **e.details},
+        )
+    return {"status": "ok", "id": result.get("id"), "created": result.get("created")}
+
+
+@router.get("/buddy-statements/{user_id}/saved")
+async def get_saved_buddy_statements(user_id: str):
+    """
+    Lets the frontend restore previously saved buddy statements on page load.
+    Returns every saved statement for the veteran (up to the page's 5-block
+    limit) rather than just the latest, since buddy statements are written as
+    a batch, one block per witness.
+
+    Returns `{"statements": []}` (not an error) whenever there is nothing to
+    resume, so a missing record never blocks the page.
+    """
+    try:
+        result = await get_buddy_statements(user_id)
+    except VetCommStatementsError as e:
+        if e.code == "not_found":
+            return {"statements": []}
+        raise HTTPException(
+            status_code=e.status_code if e.status_code in (400, 401, 404, 422) else 502,
+            detail={"code": e.code, "message": e.message, **e.details},
+        )
+
+    # Same {user_id, total, data} envelope as the personal statements list
+    # endpoint; `data` is an array here. Each record's `payload` holds what we
+    # submitted beyond the API's first-class fields, including our `request`.
+    records = result.get("data") or []
+    statements = []
+    for record in records:
+        request = (record.get("payload") or {}).get("request")
+        # Skip anything we cannot rebuild a form block from (a legacy or
+        # malformed row) rather than failing the whole restore.
+        if not request:
+            continue
+        statements.append(
+            {
+                "statement": record.get("statement"),
+                "character_count": record.get("character_count"),
+                "attempt_number": record.get("attempt_number"),
+                "generated_at": record.get("generated_at"),
+                "request": request,
+            }
+        )
+    return {"statements": statements}
 
 
 class VAFormRequest(BaseModel):
