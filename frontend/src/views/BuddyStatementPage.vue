@@ -46,9 +46,10 @@
     <div class="not-saved-banner">
       <div class="not-saved-banner-icon">!</div>
       <div>
-        <strong>Nothing here is saved on our portal.</strong> For HIPAA reasons, we do not store
-        buddy statements. Download each one as PDF as soon as you're happy with it. If you close
-        this page or refresh, your work is gone.
+        <strong>Save each statement to come back to it later.</strong> Anything you have not
+        saved is lost if you close this page or refresh. Saving keeps a draft on your account
+        only. You still need to download each statement and have it signed before you can
+        upload it to your VA claim.
       </div>
     </div>
 
@@ -219,9 +220,18 @@
 
         <!-- Download -->
         <div v-if="!b.downloaded" class="not-saved-inline">
-          <strong>Not saved on our portal.</strong> The statement above lives only in this browser
-          tab. Download it now, or you will lose it if you close this page. Send the file to
+          <strong v-if="b.saved">Saved to your account.</strong>
+          <strong v-else>Not saved yet.</strong>
+          <template v-if="b.saved">You can close this page and pick this statement back up later.</template>
+          <template v-else>The statement above lives only in this browser tab until you save it.</template>
+          To use it on your claim, download it and send the file to
           <strong>{{ b.theirName || 'the person writing it' }}</strong> for their signature, then upload the signed copy to your VA claim.
+        </div>
+        <div v-if="!b.downloaded" class="save-row">
+          <button type="button" class="btn btn-outline-secondary fw-medium" :disabled="b.saving" @click="saveStatement(b)">
+            {{ b.saving ? 'Saving...' : (b.saved ? 'Saved' : 'Save for later') }}
+          </button>
+          <span v-if="b.saveError" class="save-error">{{ b.saveError }}</span>
         </div>
         <div v-if="!b.downloaded" class="download-choice-header">Choose your download format:</div>
         <div v-if="!b.downloaded" class="download-buttons-row">
@@ -239,8 +249,12 @@
         <!-- Downloaded state -->
         <div v-else class="downloaded-notice">
           <strong>Downloaded.</strong> Send the file to <strong>{{ b.theirName || 'the person writing it' }}</strong>
-          for their signature. Then upload the signed copy to your VA claim. Remember, this statement is not saved on our portal.
+          for their signature. Then upload the signed copy to your VA claim.
+          <template v-if="!b.saved"> This statement is not saved yet, so it will be gone if you close this page.</template>
           <div class="downloaded-actions-row">
+            <button v-if="!b.saved" type="button" class="btn btn-outline-secondary" :disabled="b.saving" @click="saveStatement(b)">
+              {{ b.saving ? 'Saving...' : 'Save for later' }}
+            </button>
             <button type="button" class="btn btn-outline-secondary" @click="downloadPDF(b)">Download simple statement again</button>
             <button type="button" class="btn btn-outline-secondary" @click="downloadVAForm(b)">Download VA Form again</button>
             <button type="button" class="btn btn-outline-secondary" @click="editAgain(b)">Edit and regenerate</button>
@@ -326,6 +340,13 @@ function newBuddy() {
     downloaded: false,
     vaFormDownloading: false,
     vaFormError: '',
+    // The exact request body sent to /api/vetcomm/buddy-statements for this
+    // block's current `statement`, kept so Save can submit the full
+    // interaction (inputs + output), not just the generated text.
+    lastRequest: null,
+    saving: false,
+    saved: false,
+    saveError: '',
   })
 }
 
@@ -350,6 +371,9 @@ function resetOutput(b) {
     b.attemptNumber = 0
     b.statement = ''
     b.downloaded = false
+    b.lastRequest = null
+    b.saved = false
+    b.saveError = ''
   }
 }
 
@@ -408,6 +432,11 @@ async function callApi(b, body) {
     b.attemptNumber = data.attempt_number
     b.feedback = ''
     b.downloaded = false
+    b.lastRequest = body
+    // A regenerated statement is a different statement -- it has not been
+    // saved yet even if the previous attempt was.
+    b.saved = false
+    b.saveError = ''
   } catch (e) {
     b.error = 'Network error contacting the server.'
   } finally {
@@ -432,6 +461,96 @@ function regenerate(b) {
 
 function editAgain(b) {
   b.downloaded = false
+}
+
+/* ---------------------------------------------------------------------
+   Save / resume. Mirrors the personal statement page
+   (VetCommStatementPage.vue), with one difference: a veteran has up to 5
+   buddy statements at once, so each block saves independently and the
+   restore on load rebuilds every saved block instead of a single one.
+--------------------------------------------------------------------- */
+
+async function saveStatement(b) {
+  b.saveError = ''
+  b.saved = false
+  const userId = readCookie('LSVT_GUSERID')
+  if (!userId) {
+    b.saveError = 'Could not identify the current user. Try reloading the page.'
+    return
+  }
+  // The statement box is editable, so what is on screen may differ from what
+  // the API returned. Save what the veteran can see.
+  const request = { ...(b.lastRequest || buildBody(b, null)) }
+  b.saving = true
+  try {
+    const res = await fetch('/api/vetcomm/buddy-statements/save', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: userId,
+        generated_at: new Date().toISOString(),
+        request,
+        statement: b.statement,
+        character_count: b.statement.length,
+        attempt_number: b.attemptNumber,
+      }),
+    })
+    if (!res.ok) throw new Error('save failed')
+    b.saved = true
+  } catch (e) {
+    b.saveError = 'Could not save this buddy statement. Please try again.'
+  } finally {
+    b.saving = false
+  }
+}
+
+// Rebuilds a form block from a saved record's stored generate request, so a
+// resumed block is editable and regenerable exactly like a fresh one.
+function buddyFromSaved(record) {
+  const req = record.request || {}
+  const b = newBuddy()
+  b.condition = { name: req.condition?.name || '', category: req.condition?.category || '' }
+  b.relationship = req.witness?.relationship || ''
+  b.theirName = req.witness?.name || ''
+  b.theirRelDetail = req.witness?.relationship_detail || ''
+  b.howMet = req.witness?.how_met || ''
+  b.witnessEvent = !!req.witness?.witnessed_event
+  b.witnessImpact = !!req.witness?.witnessed_impact
+  b.event = {
+    when: req.event?.when || '',
+    where: req.event?.where || '',
+    what: req.event?.what || '',
+  }
+  b.impact = {
+    change: req.impact?.change || '',
+    examples: req.impact?.examples || '',
+  }
+  b.statement = record.statement || ''
+  b.attemptNumber = record.attempt_number || 1
+  b.lastRequest = req
+  b.saved = true
+  return b
+}
+
+// On load, restores any previously saved buddy statements instead of showing
+// a single blank block. Fails open to the blank block on a missing cookie,
+// network error, or empty response -- this is a convenience, not something
+// that should ever block the page.
+async function hydrateSavedStatements(userId) {
+  try {
+    const r = await fetch(`/api/vetcomm/buddy-statements/${encodeURIComponent(userId)}/saved`, {
+      credentials: 'include',
+    })
+    if (!r.ok) return false
+    const data = await r.json()
+    const records = (data.statements || []).slice(0, MAX_BUDDIES)
+    if (!records.length) return false
+    buddies.value = records.map(buddyFromSaved)
+    return true
+  } catch (e) {
+    return false
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -612,7 +731,11 @@ onMounted(async () => {
     } catch (e) {
       // Best-effort prefill only -- fall through to the blank/editable field.
     }
-    await prefillConditionFromLatestPersonalStatement(userId)
+    // Restoring saved buddy statements takes precedence: those blocks
+    // already carry their own condition, so the personal-statement prefill
+    // is only useful when starting from a blank block.
+    const restored = await hydrateSavedStatements(userId)
+    if (!restored) await prefillConditionFromLatestPersonalStatement(userId)
   }
 })
 
@@ -626,7 +749,7 @@ onUnmounted(() => {
 })
 
 window.addEventListener('beforeunload', (e) => {
-  if (buddies.value.some((b) => b.attemptNumber > 0 && !b.downloaded)) {
+  if (buddies.value.some((b) => b.attemptNumber > 0 && !b.downloaded && !b.saved)) {
     e.preventDefault()
     e.returnValue = ''
   }
@@ -763,6 +886,9 @@ window.addEventListener('beforeunload', (e) => {
 .regen-label { font-size: 13px; font-weight: 700; color: var(--primary-color); margin-bottom: 3px; }
 .regen-hint { font-size: 11px; color: var(--gray-500); margin-bottom: 8px; }
 .regen-actions { margin-top: 12px; }
+
+.save-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.save-error { font-size: 12px; color: var(--bs-danger, #dc3545); }
 
 .max-attempts { margin-top: 12px; padding: 12px 16px; background: var(--yellow-light); border: 1px solid #ffe082; border-radius: 8px; font-size: 12px; color: #5d3a00; line-height: 1.5; }
 

@@ -129,3 +129,116 @@ async def get_statements(user_id: str, latest: bool = False) -> dict[str, Any]:
     message = (error or {}).get("message", "VetComm statements API request failed.")
     logger.warning("vetcomm get_statements failed status=%s code=%s", resp.status_code, code)
     raise VetCommStatementsError(code=code, message=message, status_code=resp.status_code, details=error or {})
+
+
+# ---------------------------------------------------------------------------
+# Buddy (lay/witness) statements.
+#
+# NOTE: the paths below are EXAMPLE/PLACEHOLDER endpoints. The statements API
+# does not expose buddy-statement routes yet -- these mirror the personal
+# statement routes above (same service, same ingest/read tokens, same error
+# envelope) so the app can be wired end-to-end now and only the two path
+# constants need changing once the real routes are published.
+# ---------------------------------------------------------------------------
+
+# Example endpoints -- replace with the real paths when they exist.
+BUDDY_STATEMENTS_PATH = "/v1/buddy-statements"
+
+
+async def submit_buddy_statement(
+    user_id: str,
+    statement: str,
+    idempotency_key: str,
+    generated_at: str,
+    condition_name: str,
+    condition_category: str,
+    witness_name: str,
+    witness_relationship: str,
+    attempt_number: int,
+    character_count: int,
+    request: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Call POST /v1/buddy-statements (example endpoint -- see note above).
+    Returns the parsed stored record on success.
+    Raises VetCommStatementsError on any 4xx/5xx with a structured error body.
+    """
+    url = f"{VETCOMM_STATEMENTS_API_BASE_URL}{BUDDY_STATEMENTS_PATH}"
+    body = {
+        "user_id": user_id,
+        "statement": statement,
+        "generated_at": generated_at,
+        "condition_name": condition_name,
+        "condition_category": condition_category,
+        # Which witness this statement is from. A veteran has up to 5 buddy
+        # statements, so unlike personal statements these need identifying
+        # beyond user_id -- both for display on resume and for the
+        # idempotency key the caller builds.
+        "witness_name": witness_name,
+        "witness_relationship": witness_relationship,
+        "attempt_number": attempt_number,
+        "character_count": character_count,
+        # Stored as-is in the record's `payload`, same as personal
+        # statements -- the exact generate request that produced this text,
+        # so the whole interaction is retrievable and the form can be rebuilt.
+        "request": request,
+    }
+    body_bytes = json.dumps(body).encode()
+
+    if len(body_bytes) > MAX_PAYLOAD_BYTES:
+        raise VetCommStatementsError(
+            code="payload_too_large",
+            message=f"Save payload of {len(body_bytes)} bytes exceeds the {MAX_PAYLOAD_BYTES}-byte limit.",
+            status_code=413,
+        )
+
+    headers = {
+        "Authorization": f"Bearer {VETCOMM_INGEST_TOKEN}",
+        "Content-Type": "application/json",
+        "Idempotency-Key": idempotency_key,
+    }
+
+    async with httpx.AsyncClient(timeout=VETCOMM_STATEMENTS_API_TIMEOUT) as client:
+        resp = await client.post(url, content=body_bytes, headers=headers)
+
+    try:
+        data = resp.json()
+    except Exception:
+        data = {}
+
+    if resp.status_code < 300 and isinstance(data, dict) and "error" not in data:
+        return data
+
+    error = data.get("error") if isinstance(data, dict) else None
+    code = (error or {}).get("code", "internal_error")
+    message = (error or {}).get("message", "VetComm statements API request failed.")
+    logger.warning("vetcomm submit_buddy_statement failed status=%s code=%s", resp.status_code, code)
+    raise VetCommStatementsError(code=code, message=message, status_code=resp.status_code, details=error or {})
+
+
+async def get_buddy_statements(user_id: str) -> dict[str, Any]:
+    """
+    Call GET /v1/buddy-statements/{user_id} (example endpoint -- see note
+    above). Returns every saved buddy statement for the veteran, since there
+    are up to 5 of them; no `latest` shortcut, unlike personal statements.
+    Raises VetCommStatementsError on any 4xx/5xx with a structured error body.
+    """
+    url = f"{VETCOMM_STATEMENTS_API_BASE_URL}{BUDDY_STATEMENTS_PATH}/{user_id}"
+    headers = {"Authorization": f"Bearer {VETCOMM_READ_TOKEN}"}
+
+    async with httpx.AsyncClient(timeout=VETCOMM_STATEMENTS_API_TIMEOUT) as client:
+        resp = await client.get(url, headers=headers)
+
+    try:
+        data = resp.json()
+    except Exception:
+        data = {}
+
+    if resp.status_code < 300 and isinstance(data, dict) and "error" not in data:
+        return data
+
+    error = data.get("error") if isinstance(data, dict) else None
+    code = (error or {}).get("code", "internal_error")
+    message = (error or {}).get("message", "VetComm statements API request failed.")
+    logger.warning("vetcomm get_buddy_statements failed status=%s code=%s", resp.status_code, code)
+    raise VetCommStatementsError(code=code, message=message, status_code=resp.status_code, details=error or {})
