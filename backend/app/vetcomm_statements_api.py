@@ -4,6 +4,8 @@ vetcomm_api.py's statement *generation* API -- this one stores/retrieves
 saved statements. See the artifact scanned for this feature's spec:
 - POST /v1/statements  (ingest token, Idempotency-Key required)
 - GET  /v1/statements/{user_id}  (read token)
+- POST /v1/witness-statements  (ingest token, Idempotency-Key required)
+- GET  /v1/witness-statements/{user_id}  (read token)
 - GET  /health  (no token)
 
 Errors: {"error": {"code", "message", "details": {"issues": [...]}}}
@@ -132,17 +134,16 @@ async def get_statements(user_id: str, latest: bool = False) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Buddy (lay/witness) statements.
+# Buddy (lay/witness) statements. Same service, ingest/read tokens and error
+# envelope as the personal statement routes above:
+# - POST /v1/witness-statements              (ingest token, Idempotency-Key)
+# - GET  /v1/witness-statements/{user_id}    (read token)
 #
-# NOTE: the paths below are EXAMPLE/PLACEHOLDER endpoints. The statements API
-# does not expose buddy-statement routes yet -- these mirror the personal
-# statement routes above (same service, same ingest/read tokens, same error
-# envelope) so the app can be wired end-to-end now and only the two path
-# constants need changing once the real routes are published.
+# Note the upstream name is "witness", not "buddy" -- everything on our side
+# of the wire says buddy, matching the page and the generation API.
 # ---------------------------------------------------------------------------
 
-# Example endpoints -- replace with the real paths when they exist.
-BUDDY_STATEMENTS_PATH = "/v1/buddy-statements"
+BUDDY_STATEMENTS_PATH = "/v1/witness-statements"
 
 
 async def submit_buddy_statement(
@@ -159,8 +160,8 @@ async def submit_buddy_statement(
     request: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Call POST /v1/buddy-statements (example endpoint -- see note above).
-    Returns the parsed stored record on success.
+    Call POST /v1/witness-statements. Returns the parsed stored record on
+    success.
     Raises VetCommStatementsError on any 4xx/5xx with a structured error body.
     """
     url = f"{VETCOMM_STATEMENTS_API_BASE_URL}{BUDDY_STATEMENTS_PATH}"
@@ -218,9 +219,9 @@ async def submit_buddy_statement(
 
 async def get_buddy_statements(user_id: str) -> dict[str, Any]:
     """
-    Call GET /v1/buddy-statements/{user_id} (example endpoint -- see note
-    above). Returns every saved buddy statement for the veteran, since there
-    are up to 5 of them; no `latest` shortcut, unlike personal statements.
+    Call GET /v1/witness-statements/{user_id}. Returns every saved buddy
+    statement for the veteran, since there are up to 5 of them; no `latest`
+    shortcut, unlike personal statements.
     Raises VetCommStatementsError on any 4xx/5xx with a structured error body.
     """
     url = f"{VETCOMM_STATEMENTS_API_BASE_URL}{BUDDY_STATEMENTS_PATH}/{user_id}"

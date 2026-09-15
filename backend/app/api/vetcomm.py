@@ -323,9 +323,6 @@ async def save_buddy_statement(payload: SavedBuddyStatement):
     Persists one generated buddy statement (plus the request that produced
     it) via the statements ingest API, so the veteran can come back later
     instead of losing everything on refresh.
-
-    Uses EXAMPLE/PLACEHOLDER upstream endpoints -- see the note above
-    submit_buddy_statement in vetcomm_statements_api.py.
     """
     # Deterministic per (user, witness, attempt, statement) so a retried
     # "Save" click is idempotent server-side rather than creating a duplicate.
