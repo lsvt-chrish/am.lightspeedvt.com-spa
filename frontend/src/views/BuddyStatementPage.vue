@@ -219,13 +219,21 @@
         </div>
 
         <!-- Download -->
-        <div class="not-saved-inline">
-          <strong v-if="b.saved">Saved to your account.</strong>
-          <strong v-else>Not saved yet.</strong>
-          <template v-if="b.saved">You can close this page and pick this statement back up later.</template>
-          <template v-else>The statement above lives only in this browser tab until you save it.</template>
-          To use it on your claim, download it and send the file to
-          <strong>{{ b.theirName || 'the person writing it' }}</strong> for their signature, then upload the signed copy to your VA claim.
+        <div class="status-note" :class="b.saved ? 'status-note--saved' : 'status-note--unsaved'">
+          <span class="status-note-icon">{{ b.saved ? '\u2713' : '!' }}</span>
+          <div class="status-note-body">
+            <p class="status-note-title">
+              {{ b.saved ? 'Saved to your account.' : 'Not saved yet.' }}
+              <span class="status-note-detail">{{ b.saved
+                ? 'You can close this page and pick it back up later.'
+                : 'This statement lives only in this browser tab until you save it.' }}</span>
+            </p>
+            <p class="status-note-next">
+              To use it on your claim: download it, send the file to
+              <strong>{{ b.theirName || 'the person writing it' }}</strong> for their signature,
+              then upload the signed copy to your VA claim.
+            </p>
+          </div>
         </div>
         <div class="save-row">
           <button type="button" class="btn btn-outline-secondary fw-medium" :disabled="b.saving" @click="saveStatement(b)">
@@ -816,18 +824,42 @@ window.addEventListener('beforeunload', (e) => {
 .count-num { color: var(--secondary-color); }
 .counter-rec { font-size: 12px; color: var(--gray-500); font-weight: 500; }
 
-.not-saved-banner, .not-saved-inline {
+.not-saved-banner {
   background: var(--yellow-light); border: 1.5px solid var(--yellow); border-radius: 8px;
   padding: 11px 14px; color: #5d3a00; font-size: 12.5px; line-height: 1.55;
   display: flex; align-items: flex-start; gap: 10px;
+  margin-bottom: 18px;
 }
-.not-saved-banner { margin-bottom: 18px; }
-.not-saved-inline { margin-top: 14px; font-weight: 600; }
+
+/* Save state + what to do next. Only the icon and body are flex items -- the
+   prose inside stays in normal flow, or every <strong> becomes its own
+   column. */
+.status-note {
+  display: flex; align-items: flex-start; gap: 10px;
+  margin-top: 14px; padding: 11px 14px;
+  border: 1.5px solid; border-radius: 8px;
+  font-size: 12.5px; line-height: 1.55;
+}
+.status-note--unsaved { background: var(--yellow-light); border-color: var(--yellow); color: #5d3a00; }
+.status-note--saved { background: #f0f9ee; border-color: #c8e6c9; color: #1b5e20; }
+.status-note-icon {
+  flex: 0 0 auto; width: 17px; height: 17px; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; font-size: 11px; font-weight: 900; line-height: 1;
+  color: #fff;
+}
+.status-note--unsaved .status-note-icon { background: #c77700; }
+.status-note--saved .status-note-icon { background: var(--green, #2e7d32); }
+.status-note-body { min-width: 0; }
+.status-note-title { margin: 0; font-weight: 800; }
+.status-note-detail { font-weight: 600; }
+.status-note-next { margin: 4px 0 0; font-weight: 600; opacity: .9; }
+.status-note-next strong { font-weight: 800; }
 .not-saved-banner-icon {
   width: 22px; height: 22px; background: var(--yellow); color: #5d3a00; border-radius: 50%;
   display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; flex-shrink: 0; line-height: 1;
 }
-.not-saved-banner strong, .not-saved-inline strong { color: #5d3a00; font-weight: 800; }
+.not-saved-banner strong { color: #5d3a00; font-weight: 800; }
 
 .buddy-statement { border: 1px solid var(--gray-200); border-radius: 12px; padding: 18px; margin-bottom: 14px; background: var(--gray-50); }
 .buddy-statement.saved { background: #f0f9ee; border-color: #c8e6c9; }
