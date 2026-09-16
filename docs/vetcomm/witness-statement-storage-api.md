@@ -147,16 +147,15 @@ array:
 }
 ```
 
-> **Unverified as of this writing.** The response shape above is assumed from
-> the personal statement route, not confirmed against a live witness
-> endpoint. It matters because the failure is silent: `get_saved_buddy_statements()`
-> in `backend/app/api/vetcomm.py` skips any record it cannot find
-> `payload.request` under, so a different envelope restores *nothing* and the
-> page opens with a blank block -- no error shown to the veteran, and their
-> saved work apparently gone.
->
-> To check: save a statement, reload the page, confirm the block comes back
-> filled in. If it does not, compare the raw JSON against the shape above.
+Verified against production: a saved statement reloads into a filled-in
+block.
+
+Worth knowing if this shape ever changes: the failure is silent.
+`get_saved_buddy_statements()` in `backend/app/api/vetcomm.py` skips any
+record it cannot find `payload.request` under -- built to tolerate one
+malformed row, but a changed envelope makes it discard *every* row. The page
+then opens with a blank block, no error, and the veteran's saved work looks
+gone. Re-check by saving a statement and reloading the page.
 
 A veteran with nothing saved should get an empty `data` array, or `404`
 with `code: "not_found"` -- the app treats both as "nothing to resume" and
