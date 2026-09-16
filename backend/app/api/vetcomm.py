@@ -259,7 +259,10 @@ class BuddyRegeneration(BaseModel):
 
 
 class BuddyStatementRequest(BaseModel):
-    veteran_name: str
+    # The generation API rejects a blank veteran_name with insufficient_input,
+    # so catch it here rather than spending a round trip on it. Whitespace-only
+    # counts as blank -- min_length alone would let "   " through.
+    veteran_name: str = Field(min_length=1)
     condition: BuddyCondition
     witness: Witness
     event: EventDetail | None = None
@@ -269,6 +272,8 @@ class BuddyStatementRequest(BaseModel):
 
     @model_validator(mode="after")
     def _validate_witness_fields(self) -> "BuddyStatementRequest":
+        if not self.veteran_name.strip():
+            raise ValueError("veteran_name is required")
         if not self.witness.witnessed_event and not self.witness.witnessed_impact:
             raise ValueError("At least one of witnessed_event or witnessed_impact must be true")
         if self.witness.witnessed_event and self.event is None:

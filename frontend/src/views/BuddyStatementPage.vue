@@ -117,7 +117,7 @@
         </div>
         <div class="field" style="margin-top:12px;">
           <label>How and when did they first meet you?</label>
-          <p class="form__message text-muted small">Date, place, and circumstance. Gives their statement credibility with the VA.</p>
+          <p class="field-hint">Date, place, and circumstance. Gives their statement credibility with the VA.</p>
           <textarea v-model="b.howMet" rows="2" class="form__control" :placeholder="placeholdersFor(b.relationship).met"></textarea>
         </div>
       </div>
@@ -150,7 +150,7 @@
         <div class="perspective-note"><strong>Answer in your own voice.</strong> Just tell us what happened. Our AI will rewrite it from your buddy's perspective, in their voice.</div>
         <div class="field">
           <label>When did it happen?</label>
-          <p class="form__message text-muted small">A date, month, deployment, or general timeframe is fine.</p>
+          <p class="field-hint">A date, month, deployment, or general timeframe is fine.</p>
           <input v-model="b.event.when" type="text" class="form__control" placeholder="e.g. November 12th, 2004, or during my 2007 deployment to Iraq" />
         </div>
         <div class="field">
@@ -159,7 +159,7 @@
         </div>
         <div class="field">
           <label>What happened?</label>
-          <p class="form__message text-muted small">Be specific. What happened to you, and what your buddy saw.</p>
+          <p class="field-hint">Be specific. What happened to you, and what your buddy saw.</p>
           <textarea v-model="b.event.what" rows="3" class="form__control" placeholder="e.g. My Humvee hit an IED. He was three vehicles behind me and was one of the first to reach us."></textarea>
         </div>
       </div>
@@ -170,12 +170,12 @@
         <div class="perspective-note"><strong>Answer in your own voice.</strong> Tell us what has changed for you since service, and what your buddy has noticed. Our AI will write it in their voice.</div>
         <div class="field">
           <label>What has changed for you that they've noticed?</label>
-          <p class="form__message text-muted small">Symptoms, behavior, mood, physical limitations, relationships. In your own words.</p>
+          <p class="field-hint">Symptoms, behavior, mood, physical limitations, relationships. In your own words.</p>
           <textarea v-model="b.impact.change" rows="3" class="form__control" placeholder="e.g. Constant back pain since my second tour. Nightmares. I avoid crowds now."></textarea>
         </div>
         <div class="field">
           <label>Specific examples they might mention <span class="optional">(optional)</span></label>
-          <p class="form__message text-muted small">Concrete moments make the statement more powerful.</p>
+          <p class="field-hint">Concrete moments make the statement more powerful.</p>
           <textarea v-model="b.impact.examples" rows="3" class="form__control" placeholder="e.g. I missed our family reunion because the drive was too much."></textarea>
         </div>
       </div>
@@ -204,7 +204,7 @@
         </div>
 
         <!-- Regenerate -->
-        <div v-if="b.attemptNumber < MAX_ATTEMPTS && !b.downloaded" class="regen-wrap">
+        <div v-if="b.attemptNumber < MAX_ATTEMPTS" class="regen-wrap">
           <div class="regen-label">Want to change something?</div>
           <div class="regen-hint">Tell us what to add, remove, or adjust the tone.</div>
           <textarea v-model="b.feedback" rows="2" class="form__control" placeholder='e.g. "Make it more emotional" or "Add that she missed my surgery in 2019"'></textarea>
@@ -214,12 +214,12 @@
             </button>
           </div>
         </div>
-        <div v-else-if="!b.downloaded" class="max-attempts">
+        <div v-else class="max-attempts">
           You've used all 5 regeneration attempts. Edit the statement directly in the box above if you want small tweaks, then download.
         </div>
 
         <!-- Download -->
-        <div v-if="!b.downloaded" class="not-saved-inline">
+        <div class="not-saved-inline">
           <strong v-if="b.saved">Saved to your account.</strong>
           <strong v-else>Not saved yet.</strong>
           <template v-if="b.saved">You can close this page and pick this statement back up later.</template>
@@ -227,14 +227,16 @@
           To use it on your claim, download it and send the file to
           <strong>{{ b.theirName || 'the person writing it' }}</strong> for their signature, then upload the signed copy to your VA claim.
         </div>
-        <div v-if="!b.downloaded" class="save-row">
+        <div class="save-row">
           <button type="button" class="btn btn-outline-secondary fw-medium" :disabled="b.saving" @click="saveStatement(b)">
             {{ b.saving ? 'Saving...' : (b.saved ? 'Saved' : 'Save for later') }}
           </button>
           <span v-if="b.saveError" class="save-error">{{ b.saveError }}</span>
         </div>
-        <div v-if="!b.downloaded" class="download-choice-header">Choose your download format:</div>
-        <div v-if="!b.downloaded" class="download-buttons-row">
+        <div class="download-choice-header">
+          {{ b.downloaded ? 'Download again:' : 'Choose your download format:' }}
+        </div>
+        <div class="download-buttons-row">
           <button type="button" class="btn-download-option" @click="downloadPDF(b)">
             <span class="option-title">Simple statement (PDF)</span>
             <span class="option-sub">A signed letter your buddy attaches to your VA claim. Simplest option.</span>
@@ -246,20 +248,6 @@
         </div>
         <p v-if="b.vaFormError" class="alert alert-danger" role="alert" style="margin-top:8px;">{{ b.vaFormError }}</p>
 
-        <!-- Downloaded state -->
-        <div v-else class="downloaded-notice">
-          <strong>Downloaded.</strong> Send the file to <strong>{{ b.theirName || 'the person writing it' }}</strong>
-          for their signature. Then upload the signed copy to your VA claim.
-          <template v-if="!b.saved"> This statement is not saved yet, so it will be gone if you close this page.</template>
-          <div class="downloaded-actions-row">
-            <button v-if="!b.saved" type="button" class="btn btn-outline-secondary" :disabled="b.saving" @click="saveStatement(b)">
-              {{ b.saving ? 'Saving...' : 'Save for later' }}
-            </button>
-            <button type="button" class="btn btn-outline-secondary" @click="downloadPDF(b)">Download simple statement again</button>
-            <button type="button" class="btn btn-outline-secondary" @click="downloadVAForm(b)">Download VA Form again</button>
-            <button type="button" class="btn btn-outline-secondary" @click="editAgain(b)">Edit and regenerate</button>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -378,6 +366,7 @@ function resetOutput(b) {
 }
 
 function validate(b) {
+  if (!veteranName.value.trim()) return 'Enter your name at the top of the page.'
   if (!b.condition.name.trim()) return 'Enter which condition this statement is about.'
   if (!b.condition.category) return 'Pick a category for this condition.'
   if (!b.relationship) return 'Pick who is writing this statement.'
@@ -392,6 +381,24 @@ function validate(b) {
     return 'Add more detail about what has changed for you (at least 15 characters).'
   }
   return ''
+}
+
+// The API reports missing fields by its own wire names; show the veteran the
+// label of the input they need to go fill in instead.
+const FIELD_LABELS = {
+  veteran_name: 'your name at the top of the page',
+  'condition.name': 'the condition',
+  'condition.category': 'the condition category',
+  'witness.name': "the witness's name",
+  'witness.relationship': 'who is writing this statement',
+  'witness.relationship_detail': 'their relationship to you',
+  'witness.how_met': 'how and when they met you',
+  'event.what': 'what they witnessed',
+  'impact.change': 'what has changed for you',
+}
+
+function fieldLabel(name) {
+  return FIELD_LABELS[name] || name
 }
 
 function buildBody(b, regeneration) {
@@ -425,7 +432,11 @@ async function callApi(b, body) {
     const data = await res.json()
     if (!res.ok) {
       const detail = data.detail || {}
-      b.error = detail.message || 'Failed to generate statement.'
+      const missing = detail.required_fields_missing || []
+      b.error = [
+        detail.message || 'Failed to generate statement.',
+        missing.length ? `Missing: ${missing.map(fieldLabel).join(', ')}.` : '',
+      ].filter(Boolean).join(' ')
       return
     }
     b.statement = data.statement
@@ -457,10 +468,6 @@ function regenerate(b) {
     veteran_feedback: b.feedback.trim(),
     attempt_number: b.attemptNumber + 1,
   }))
-}
-
-function editAgain(b) {
-  b.downloaded = false
 }
 
 /* ---------------------------------------------------------------------
@@ -854,6 +861,12 @@ window.addEventListener('beforeunload', (e) => {
 .field { margin-bottom: 0; }
 .field label { display: block; font-size: 12px; font-weight: 700; color: var(--primary-color); margin-bottom: 4px; }
 .field label .optional { font-weight: 500; color: var(--gray-500); font-size: 11px; margin-left: 4px; }
+/* Hint text under a field label. Deliberately NOT the host theme's
+   .form__message: that is position:absolute/top:100% so it takes no layout
+   space -- fine for the one-line validation message it was built for, but our
+   hints are longer prose sitting between the label and the control, so they
+   rendered on top of the inputs. */
+.field-hint { font-size: 11.5px; color: var(--gray-500); line-height: 1.5; margin: 0 0 6px; }
 
 .witness-toggles { display: flex; flex-direction: column; gap: 8px; }
 .witness-toggle {
@@ -906,9 +919,6 @@ window.addEventListener('beforeunload', (e) => {
 .btn-download-option .option-title::before { content: "\2193"; font-size: 15px; font-weight: 900; }
 .btn-download-option .option-sub { font-size: 11.5px; font-weight: 500; color: var(--gray-500); line-height: 1.4; }
 
-.downloaded-notice { margin-top: 12px; padding: 12px 14px; background: #f0f9ee; border: 1px solid #c8e6c9; border-radius: 8px; color: #1b5e20; font-size: 12.5px; line-height: 1.55; }
-.downloaded-notice strong { font-weight: 800; }
-.downloaded-actions-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
 
 .add-buddy-wrap { margin-top: 6px; text-align: center; }
 .btn-add-buddy { width: 100%; }
